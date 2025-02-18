@@ -18,10 +18,21 @@ builder.Services.AddControllers();  // Assurez-vous que cette ligne est présent
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
 // Ajoutez ces lignes pour enregistrer ProductService et HttpClient
 builder.Services.AddHttpClient();  // Nécessaire pour ProductService
 builder.Services.AddScoped<ProductService>();
+
+// Ajouter la configuration CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:5173")  // URL du frontend Vite
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
 
 var app = builder.Build();
 
@@ -32,6 +43,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Activer CORS
+app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
