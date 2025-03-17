@@ -1,20 +1,29 @@
 import * as React from 'react'
-import { Link } from 'react-router-dom'
-import { Home, Package, ShoppingCart, Users, Settings } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Home, Package, LogOut } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarProvider,
 } from '@/components/ui/sidebar'
+import { useAuthStore } from '../stores/authStore'
+import { Button } from './ui/button'
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
+  const logout = useAuthStore((state) => state.logout)
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
   return (
     <SidebarProvider>
       <div className="flex h-screen bg-background">
@@ -22,7 +31,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <SidebarHeader className="border-border">
             <h2 className="text-xl font-bold p-4 text-foreground">T-DEV-700</h2>
           </SidebarHeader>
-          <SidebarContent>
+          <SidebarContent className="flex flex-col h-[calc(100%-4rem)]">
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -42,36 +51,24 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <Link to="/orders" className="flex items-center text-foreground">
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        <span>Commandes</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <Link to="/customers" className="flex items-center text-foreground">
-                        <Users className="mr-2 h-4 w-4" />
-                        <span>Clients</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <Link to="/settings" className="flex items-center text-foreground">
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Paramètres</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            
+            {/* Bouton de déconnexion en bas */}
+            <div className="mt-auto p-4 border-t">
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Déconnexion
+              </Button>
+            </div>
           </SidebarContent>
         </Sidebar>
-        <main className="flex-1 overflow-y-auto bg-background text-foreground">
+        <main className="flex-1 overflow-y-auto bg-background text-foreground p-8">
           {children}
         </main>
       </div>

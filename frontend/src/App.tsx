@@ -5,6 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import Products from './pages/Products';
 import { Login } from './pages/Login';
 import { Layout } from './components/Layout';
+import { PrivateRoute } from './components/PrivateRoute';
 import { useEffect } from 'react'
 const queryClient = new QueryClient();
 
@@ -16,17 +17,23 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <div className="dark">
-          <Layout>
-            <main>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/products" element={<Products />} />
-                <Route path="/login" element={<Login />} />
-              </Routes>
-            </main>
-          </Layout>
-        </div>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={
+            <PrivateRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </PrivateRoute>
+          } />
+          <Route path="/products" element={
+            <PrivateRoute>
+              <Layout>
+                <Products />
+              </Layout>
+            </PrivateRoute>
+          } />
+        </Routes>
       </BrowserRouter>
       <ReactQueryDevtools />
     </QueryClientProvider>

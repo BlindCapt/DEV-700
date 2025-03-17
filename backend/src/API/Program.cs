@@ -1,7 +1,10 @@
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Application.Services;
-
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,7 +25,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();  // Nécessaire pour ProductService
 builder.Services.AddScoped<ProductService>();
 
-// Ajouter la configuration CORS
+// Modifier la configuration CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
@@ -30,8 +33,30 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins("http://localhost:5173")  // URL du frontend Vite
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .AllowAnyMethod()
+                  .AllowCredentials();  // Ajout de cette ligne
         });
+});
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8
+                .GetBytes(builder.Configuration.GetSection("JWT:Key").Value!)),
+            ValidateIssuer = false,
+            ValidateAudience = false
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("RequireManagerRole", policy => 
+        policy.RequireRole("MANAGER"));
+    options.AddPolicy("RequireEmployeeRole", policy => 
+        policy.RequireRole("EMPLOYEE", "MANAGER"));
 });
 
 var app = builder.Build();
@@ -39,15 +64,15 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Activer CORS
+// Déplacer CORS avant les autres middlewares
 app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

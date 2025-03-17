@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "YWq+7A5zxM4=",
+  "dgSpecHash": "KwC6/ouSPK8=",
   "success": true,
   "projectFilePath": "C:\\Users\\matth\\Cours\\epitech\\Projet\\DEV-700\\backend\\src\\API\\API.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\matth\\.nuget\\packages\\automapper\\12.0.1\\automapper.12.0.1.nupkg.sha512",
     "C:\\Users\\matth\\.nuget\\packages\\automapper.extensions.microsoft.dependencyinjection\\12.0.1\\automapper.extensions.microsoft.dependencyinjection.12.0.1.nupkg.sha512",
+    "C:\\Users\\matth\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\matth\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\matth\\.nuget\\packages\\mediatr\\11.0.0\\mediatr.11.0.0.nupkg.sha512",
     "C:\\Users\\matth\\.nuget\\packages\\mediatr.contracts\\1.0.1\\mediatr.contracts.1.0.1.nupkg.sha512",

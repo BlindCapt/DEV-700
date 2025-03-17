@@ -161,3 +161,4 @@ C:\Users\matth\Cours\epitech\Projet\DEV-700\backend\src\API\bin\Debug\net9.0\ru\
 C:\Users\matth\Cours\epitech\Projet\DEV-700\backend\src\API\bin\Debug\net9.0\tr\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 C:\Users\matth\Cours\epitech\Projet\DEV-700\backend\src\API\bin\Debug\net9.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 C:\Users\matth\Cours\epitech\Projet\DEV-700\backend\src\API\bin\Debug\net9.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
+C:\Users\matth\Cours\epitech\Projet\DEV-700\backend\src\API\bin\Debug\net9.0\BCrypt.Net-Next.dll

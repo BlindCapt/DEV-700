@@ -3,9 +3,11 @@ using Core.Entities;
 using Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+// using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
+    // [Authorize(Policy = "RequireEmployeeRole")]  // Commenté pour permettre l'accès sans authentification
     [Route("api/products")]
     [ApiController]
     public class ProductsController : ControllerBase

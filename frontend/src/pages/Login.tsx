@@ -1,24 +1,66 @@
-import React from 'react';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../stores/authStore'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { useToast } from '@/hooks/use-toast'
 
-export const Login = () => {
+export function Login() {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const login = useAuthStore((state) => state.login)
+  const navigate = useNavigate()
+  const { toast } = useToast()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await login(username, password)
+      navigate('/')
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Identifiants invalides",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-md p-8 space-y-4 bg-white rounded-lg shadow">
-        <h1 className="text-2xl font-bold text-center">Connexion</h1>
-        <form className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium">Email</label>
-            <input type="email" className="w-full p-2 border rounded" />
+    <div className="h-screen w-screen flex items-center justify-center bg-background">
+      <div className="w-full max-w-sm p-8 space-y-6 bg-card border rounded-lg shadow-lg">
+        <div>
+          <h2 className="text-center text-2xl font-semibold tracking-tight">
+            Connexion
+          </h2>
+          <p className="text-center text-sm text-muted-foreground mt-2">
+            Entrez vos identifiants pour accéder à votre compte
+          </p>
+        </div>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <Input
+                type="text"
+                placeholder="Nom d'utilisateur"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
+            <div>
+              <Input
+                type="password"
+                placeholder="Mot de passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium">Mot de passe</label>
-            <input type="password" className="w-full p-2 border rounded" />
-          </div>
-          <button className="w-full p-2 bg-blue-600 text-white rounded">
+          <Button type="submit" className="w-full">
             Se connecter
-          </button>
+          </Button>
         </form>
       </div>
     </div>
-  );
-}; 
+  )
+} 
