@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configuration explicite des URLs pour écouter sur toutes les interfaces
+builder.WebHost.ConfigureKestrel(options => {
+    options.Listen(System.Net.IPAddress.Any, 5094);
+});
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -31,10 +36,11 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend",
         policy =>
         {
-            policy.WithOrigins("http://localhost:5173")  // URL du frontend Vite
+            policy.AllowAnyOrigin()  // Permettre toutes les origines
                   .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();  // Ajout de cette ligne
+                  .AllowAnyMethod();
+            // Note: AllowAnyOrigin et AllowCredentials ne peuvent pas être utilisés ensemble
+            // Si vous avez besoin de credentials, utilisez WithOrigins spécifique à la place
         });
 });
 
@@ -82,7 +88,8 @@ if (app.Environment.IsDevelopment())
 // Déplacer CORS avant les autres middlewares
 app.UseCors("AllowFrontend");
 
-app.UseHttpsRedirection();
+// Commenté pour éviter les problèmes de redirection
+// app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

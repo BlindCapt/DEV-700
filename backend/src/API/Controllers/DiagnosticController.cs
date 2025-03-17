@@ -14,10 +14,12 @@ namespace API.Controllers
     public class DiagnosticController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public DiagnosticController(AppDbContext context)
+        public DiagnosticController(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         [HttpGet("users")]
@@ -45,18 +47,19 @@ namespace API.Controllers
         }
 
         [HttpGet("hash-test")]
-        public IActionResult TestBcryptHash(string password)
+        public IActionResult TestHashPassword(string password = "admin")
         {
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
-            var staticHash = "$2a$11$kkhBm1nsqPJT7MffhvW/A..3QF6yjgI076.F39NoPED4xwGWlIyyO"; // hash pré-calculé pour "admin"
-            
-            return Ok(new
-            {
-                inputPassword = password,
-                generatedHash = hashedPassword,
+            var hash = BCrypt.Net.BCrypt.HashPassword(password);
+            var staticHash = "$2a$11$Xmj3aNxU5OJBM7/W85J0OO4wh7oGr7a5qnhKnf3I/.bGaW89sliqW"; // Hash for "admin"
+            var isValid = BCrypt.Net.BCrypt.Verify(password, staticHash);
+            var isDynamicValid = BCrypt.Net.BCrypt.Verify(password, hash);
+
+            return Ok(new {
+                providedPassword = password,
+                generatedHash = hash,
                 staticHash = staticHash,
-                verifyWithGenerated = BCrypt.Net.BCrypt.Verify(password, hashedPassword),
-                verifyWithStatic = BCrypt.Net.BCrypt.Verify(password, staticHash)
+                isStaticHashValid = isValid,
+                isDynamicHashValid = isDynamicValid
             });
         }
 
@@ -65,49 +68,85 @@ namespace API.Controllers
         {
             try
             {
-                // Vérifier si l'utilisateur test existe déjà
-                var existingUser = await _context.WebUsers.FirstOrDefaultAsync(u => u.Username == "testuser");
+                // Vérifier si l'utilisateur existe déjà
+                var existingUser = await _context.WebUsers
+                    .FirstOrDefaultAsync(u => u.Username == "testuser");
+
                 if (existingUser != null)
                 {
-                    return Ok(new { 
-                        message = "L'utilisateur test existe déjà", 
-                        userId = existingUser.Id,
-                        username = existingUser.Username,
-                        hashedPassword = existingUser.Password
-                    });
+                    return Ok(new { message = "L'utilisateur de test existe déjà", userId = existingUser.Id });
                 }
 
-                // Créer un hash pour le mot de passe "password"
-                var plainPassword = "password";
-                var hashedPassword = BCrypt.Net.BCrypt.HashPassword(plainPassword);
-
-                // Créer un nouvel utilisateur test
-                var testUser = new WebUser
+                // Créer un nouvel utilisateur avec BCrypt pour le hachage du mot de passe
+                var hashedPassword = BCrypt.Net.BCrypt.HashPassword("password");
+                
+                var newUser = new WebUser
                 {
                     Username = "testuser",
-                    Password = hashedPassword,
                     Email = "test@example.com",
+                    Password = hashedPassword,
                     FirstName = "Test",
                     LastName = "User",
                     Role = WebUserRole.Employee,
                     CreatedAt = DateTime.UtcNow
                 };
-
-                _context.WebUsers.Add(testUser);
+                
+                _context.WebUsers.Add(newUser);
                 await _context.SaveChangesAsync();
+                
+                return Ok(new { message = "Utilisateur de test créé avec succès", userId = newUser.Id });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
 
+        [HttpPost("create-mobile-user")]
+        public async Task<IActionResult> CreateMobileUser()
+        {
+            try
+            {
+                // Vérifier si l'utilisateur mobile existe déjà
+                var existingUser = await _context.MobileUsers
+                    .FirstOrDefaultAsync(u => u.Email == "test@dev700.com");
+
+                if (existingUser != null)
+                {
+                    return Ok(new { 
+                        message = "L'utilisateur mobile de test existe déjà", 
+                        userId = existingUser.Id,
+                        email = existingUser.Email
+                    });
+                }
+
+                // Créer un nouvel utilisateur mobile avec BCrypt pour le hachage du mot de passe
+                var hashedPassword = BCrypt.Net.BCrypt.HashPassword("test123");
+                
+                var newUser = new MobileUser
+                {
+                    Email = "test@dev700.com",
+                    Password = hashedPassword,
+                    FirstName = "Test",
+                    LastName = "User",
+                    PhoneNumber = "0123456789",
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+                
+                _context.MobileUsers.Add(newUser);
+                await _context.SaveChangesAsync();
+                
                 return Ok(new { 
-                    message = "Utilisateur test créé avec succès", 
-                    userId = testUser.Id,
-                    username = testUser.Username,
-                    plainPassword = plainPassword,
-                    hashedPassword = hashedPassword,
-                    createdAt = testUser.CreatedAt
+                    message = "Utilisateur mobile de test créé avec succès", 
+                    userId = newUser.Id,
+                    email = newUser.Email,
+                    password = "test123" // Uniquement pour informer l'utilisateur, ne pas faire ça en production
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Erreur lors de la création de l'utilisateur test", error = ex.Message });
+                return StatusCode(500, new { error = ex.Message });
             }
         }
 
@@ -122,6 +161,21 @@ namespace API.Controllers
                 keyExists,
                 keyLength = jwtKey?.Length ?? 0,
                 keyStart = keyExists ? jwtKey?.Substring(0, Math.Min(5, jwtKey?.Length ?? 0)) + "..." : null
+            });
+        }
+
+        [HttpGet("ping")]
+        public IActionResult Ping()
+        {
+            return Ok(new
+            {
+                message = "Pong!",
+                timestamp = DateTime.UtcNow,
+                serverInfo = new {
+                    platform = System.Runtime.InteropServices.RuntimeInformation.OSDescription,
+                    serverTime = DateTime.Now.ToString(),
+                    environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"
+                }
             });
         }
     }
