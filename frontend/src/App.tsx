@@ -7,6 +7,7 @@ import { Login } from './pages/Login';
 import { Layout } from './components/Layout';
 import { PrivateRoute } from './components/PrivateRoute';
 import { useEffect } from 'react'
+import { Toaster } from '@/components/ui/sonner';
 const queryClient = new QueryClient();
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
         </Routes>
       </BrowserRouter>
       <ReactQueryDevtools />
+      <Toaster />
     </QueryClientProvider>
   );
 }

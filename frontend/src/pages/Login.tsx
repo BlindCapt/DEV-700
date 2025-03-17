@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 export function Login() {
   const [username, setUsername] = useState('')
@@ -11,7 +11,6 @@ export function Login() {
   const login = useAuthStore((state) => state.login)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const navigate = useNavigate()
-  const { toast } = useToast()
 
   // Rediriger si déjà authentifié
   useEffect(() => {
@@ -25,11 +24,19 @@ export function Login() {
     try {
       await login(username, password)
       navigate('/')
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Identifiants invalides",
-        variant: "destructive",
+    } catch (error: any) {
+      // Message d'erreur plus détaillé
+      let errorMessage = "Identifiants invalides";
+      
+      // Si nous avons des détails d'erreur de l'API
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error("Échec de connexion", {
+        description: errorMessage,
       })
     }
   }
