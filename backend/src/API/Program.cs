@@ -53,10 +53,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization(options =>
 {
+    // Politiques pour les utilisateurs web
+    options.AddPolicy("RequireWebUser", policy => 
+        policy.RequireClaim("UserType", "WebUser"));
+        
     options.AddPolicy("RequireManagerRole", policy => 
-        policy.RequireRole("MANAGER"));
+        policy.RequireClaim("UserType", "WebUser")
+              .RequireRole("Manager"));
+              
     options.AddPolicy("RequireEmployeeRole", policy => 
-        policy.RequireRole("EMPLOYEE", "MANAGER"));
+        policy.RequireClaim("UserType", "WebUser")
+              .RequireRole("Manager", "Employee"));
+    
+    // Politiques pour les utilisateurs mobiles
+    options.AddPolicy("RequireMobileUser", policy => 
+        policy.RequireClaim("UserType", "MobileUser"));
 });
 
 var app = builder.Build();
