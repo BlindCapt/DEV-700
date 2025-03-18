@@ -4,6 +4,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../providers/product_provider.dart';
 import '../../../products/domain/models/product.dart';
+import '../../../../providers/cart_provider.dart';
 
 class BarcodeScannerScreen extends ConsumerStatefulWidget {
   const BarcodeScannerScreen({Key? key}) : super(key: key);
@@ -223,12 +224,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
                         Center(
                           child: ElevatedButton.icon(
                             onPressed: () {
-                              // TODO: Implémenter l'ajout au panier
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Fonctionnalité à implémenter'),
-                                ),
-                              );
+                              _showAddToCartDialog(context);
                             },
                             icon: const Icon(Icons.add_shopping_cart),
                             label: const Text('Ajouter au panier'),
@@ -343,6 +339,134 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
         debugPrint(_errorMessage);
       });
     }
+  }
+
+  void _showAddToCartDialog(BuildContext context) {
+    if (_scannedProduct == null) return;
+    
+    final product = _scannedProduct!;
+    final availableStock = product.quantity;
+    
+    // Contrôleur pour le champ de texte de quantité
+    final quantityController = TextEditingController(text: '1');
+    
+    // Prix total initial (prix unitaire * 1)
+    ValueNotifier<double> totalPrice = ValueNotifier(product.price);
+    
+    // Mettre à jour le prix total lorsque la quantité change
+    void updateTotalPrice(String value) {
+      final quantity = int.tryParse(value) ?? 0;
+      totalPrice.value = quantity * product.price;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ajouter au panier'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              product.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Prix unitaire: ${product.price.toStringAsFixed(2)} €',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'En stock: $availableStock',
+              style: TextStyle(
+                fontSize: 14,
+                color: availableStock < 5 ? Colors.red : Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: quantityController,
+              decoration: const InputDecoration(
+                labelText: 'Quantité',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+              onChanged: updateTotalPrice,
+            ),
+            const SizedBox(height: 16),
+            ValueListenableBuilder<double>(
+              valueListenable: totalPrice,
+              builder: (context, value, child) {
+                return Text(
+                  'Prix total: ${value.toStringAsFixed(2)} €',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () {
+              // Récupérer la quantité saisie
+              final quantity = int.tryParse(quantityController.text) ?? 0;
+              
+              // Vérifier que la quantité est valide
+              if (quantity <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Veuillez saisir une quantité valide'),
+                  ),
+                );
+                return;
+              }
+              
+              // Vérifier que la quantité ne dépasse pas le stock disponible
+              if (quantity > availableStock) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('La quantité demandée (${quantity}) dépasse le stock disponible (${availableStock})'),
+                  ),
+                );
+                return;
+              }
+              
+              // Ajouter au panier
+              ref.read(cartProvider.notifier).addToCart(product, quantity);
+              
+              // Fermer la boîte de dialogue
+              Navigator.of(context).pop();
+              
+              // Afficher une confirmation
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${product.name} ajouté au panier (${quantity}x)'),
+                  action: SnackBarAction(
+                    label: 'Voir le panier',
+                    onPressed: () {
+                      Navigator.of(context).pushNamed('/cart');
+                    },
+                  ),
+                ),
+              );
+            },
+            child: const Text('Ajouter'),
+            style: TextButton.styleFrom(foregroundColor: Colors.green),
+          ),
+        ],
+      ),
+    );
   }
 }
 

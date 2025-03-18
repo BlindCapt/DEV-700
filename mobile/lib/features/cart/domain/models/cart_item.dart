@@ -1,61 +1,26 @@
-import 'package:hive/hive.dart';
+import '../../../products/domain/models/product.dart';
 
 // Cette annotation sera utilisée lors de la génération de l'adaptateur Hive
 // @HiveType(typeId: 1)
 class CartItem {
   // @HiveField(0)
-  final int id;
+  final Product product;
   
   // @HiveField(1)
-  final String name;
-  
-  // @HiveField(2)
-  final String imageUrl;
-  
-  // @HiveField(3)
-  final double price;
-  
-  // @HiveField(4)
-  int quantity;
+  final int quantity;
 
   CartItem({
-    required this.id,
-    required this.name,
-    required this.imageUrl,
-    required this.price,
-    this.quantity = 1,
+    required this.product,
+    required this.quantity,
   });
 
-  // Calcul du sous-total pour cet article
-  double get subtotal => price * quantity;
+  // Prix total de cet article (prix unitaire * quantité)
+  double get totalPrice => product.price * quantity;
 
-  // Pour augmenter la quantité
-  void incrementQuantity() {
-    quantity++;
-  }
-
-  // Pour diminuer la quantité
-  bool decrementQuantity() {
-    if (quantity > 1) {
-      quantity--;
-      return true;
-    }
-    return false; // Retourne false si la quantité est déjà à 1
-  }
-
-  // Pour créer une copie avec des propriétés modifiées
-  CartItem copyWith({
-    int? id,
-    String? name,
-    String? imageUrl,
-    double? price,
-    int? quantity,
-  }) {
+  // Créer une copie de cet article avec une nouvelle quantité
+  CartItem copyWith({int? quantity}) {
     return CartItem(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      imageUrl: imageUrl ?? this.imageUrl,
-      price: price ?? this.price,
+      product: product,
       quantity: quantity ?? this.quantity,
     );
   }
