@@ -42,3 +42,9 @@ android {
 flutter {
     source = "../.."
 }
+
+// Ajout de la dépendance explicite pour flutter_secure_storage
+dependencies {
+    // Assurer que la bibliothèque de sécurité Android est disponible
+    implementation "androidx.security:security-crypto:1.0.0"
+}

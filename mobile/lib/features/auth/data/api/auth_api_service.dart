@@ -5,13 +5,17 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../../core/constants/app_constants.dart';
+import '../../../../../core/utils/token_manager.dart';
 
 import '../../domain/models/api_user.dart';
 
 class AuthApiService {
+  // Gestionnaire de token unifié
+  final TokenManager _tokenManager = TokenManager();
+  
   // Liste des URLs API à essayer
   final List<String> _apiUrls = [
-    'https://1ece-163-5-3-101.ngrok-free.app', // URL ngrok actuelle
+    'https://e348-2a04-cec2-a-b47f-546a-73c7-c44c-f63f.ngrok-free.app', // URL ngrok actuelle
   ];
   
   // Index de l'URL actuelle
@@ -30,17 +34,35 @@ class AuthApiService {
     debugPrint('Basculé vers l\'URL alternative ${_currentUrlIndex + 1}: $currentApiUrl');
   }
   
-  // Méthodes pour la gestion du token JWT
+  // Méthodes pour la gestion du token JWT en utilisant TokenManager
   Future<void> saveToken(String token) async {
+    await _tokenManager.saveToken(token);
+    
+    // Sauvegarder une copie dans Hive pour la persistance des sessions
     final box = Hive.box(AppConstants.userBoxName);
     await box.put('jwt_token', token);
-    debugPrint('Token JWT sauvegardé dans le stockage local, longueur: ${token.length}');
+    debugPrint('Token JWT sauvegardé dans le stockage local et TokenManager');
   }
   
   Future<String?> getToken() async {
-    final box = Hive.box(AppConstants.userBoxName);
-    final token = box.get('jwt_token');
-    debugPrint('Récupération du token JWT: ${token != null ? "Trouvé (longueur: ${token.length})" : "Aucun token"}');
+    // Toujours utiliser TokenManager pour récupérer le token
+    final token = await _tokenManager.getToken();
+    
+    // Si TokenManager ne trouve pas le token, essayer de le récupérer depuis Hive
+    if (token == null) {
+      final box = Hive.box(AppConstants.userBoxName);
+      final savedToken = box.get('jwt_token');
+      
+      if (savedToken != null) {
+        // Restaurer le token dans TokenManager
+        debugPrint('Token trouvé dans Hive mais pas dans TokenManager, restauration...');
+        await _tokenManager.saveToken(savedToken);
+        return savedToken;
+      }
+      
+      return null;
+    }
+    
     return token;
   }
   
@@ -97,9 +119,12 @@ class AuthApiService {
   }
   
   Future<void> clearToken() async {
+    // Effacer dans TokenManager et dans Hive
+    await _tokenManager.clearTokens();
+    
     final box = Hive.box(AppConstants.userBoxName);
     await box.delete('jwt_token');
-    debugPrint('Token JWT supprimé du stockage local');
+    debugPrint('Token JWT supprimé du TokenManager et du stockage local');
   }
   
   // Créer un client HTTP avec le token d'authentification s'il existe

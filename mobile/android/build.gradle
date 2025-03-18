@@ -16,6 +16,14 @@ allprojects {
         google()
         mavenCentral()
     }
+    
+    afterEvaluate {
+        if (project.hasProperty("android")) {
+            if (project.name == 'flutter_secure_storage' && !project.android.hasProperty('namespace')) {
+                project.android.namespace = "com.it_nomads.fluttersecurestorage"
+            }
+        }
+    }
 }
 
 rootProject.buildDir = "../build"

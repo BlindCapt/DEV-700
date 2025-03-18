@@ -22,4 +22,11 @@ plugins {
     id "org.jetbrains.kotlin.android" version "1.8.22" apply false
 }
 
+// Ajout d'une configuration pour gérer le namespace des plugins
+gradle.beforeProject { project ->
+    if (project.name == 'flutter_secure_storage') {
+        project.ext.set('android.namespace', 'com.it_nomads.fluttersecurestorage')
+    }
+}
+
 include ":app"

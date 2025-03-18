@@ -24,11 +24,20 @@ class CartScreen extends ConsumerWidget {
               },
               tooltip: 'Vider le panier',
             ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              ref.read(cartProvider.notifier).refreshCart();
+            },
+            tooltip: 'Rafraîchir le panier',
+          ),
         ],
       ),
-      body: cartItems.isEmpty 
-          ? _buildEmptyCart() 
-          : _buildCartContent(context, cartItems, cartState.totalPrice, ref),
+      body: cartState.isLoading
+          ? _buildLoadingIndicator()
+          : (cartItems.isEmpty 
+            ? _buildEmptyCart() 
+            : _buildCartContent(context, cartItems, cartState.totalPrice, ref)),
       bottomNavigationBar: cartItems.isEmpty 
           ? null 
           : _buildBottomBar(context, cartState.totalPrice),
@@ -278,14 +287,15 @@ class CartScreen extends ConsumerWidget {
                 const Text(
                   'Total:',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     color: Colors.grey,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   '${totalPrice.toStringAsFixed(2)} €',
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -315,6 +325,19 @@ class CartScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Chargement du panier...'),
+        ],
       ),
     );
   }

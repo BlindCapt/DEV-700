@@ -1,0 +1,4 @@
+// Ce fichier est appliqué à tous les plugins flutter_secure_storage
+android {
+    namespace = "com.it_nomads.fluttersecurestorage"
+} 
