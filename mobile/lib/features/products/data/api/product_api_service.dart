@@ -44,6 +44,8 @@ class ProductApiService {
         return Product.fromJson(data);
       } else {
         debugPrint('Aucun produit trouvé: ${response.statusCode} ${response.body}');
+        debugPrint('Message d\'erreur du serveur: ${response.body}');
+        debugPrint('Headers de réponse: ${response.headers}');
         return null;
       }
     } catch (e) {

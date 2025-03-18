@@ -62,7 +62,7 @@ class ProductNotifier extends StateNotifier<ProductState> {
       } else {
         state = state.copyWith(
           isLoading: false,
-          error: 'Aucun produit trouvé avec ce code-barres',
+          error: 'Ce produit n\'est pas disponible à la vente dans notre magasin.',
         );
         return null;
       }

@@ -289,7 +289,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
         _isLoading = false;
         _scannedProduct = product;
         _errorMessage = product == null
-            ? 'Aucun produit trouvé avec ce code-barres'
+            ? 'Ce produit n\'est pas disponible à la vente dans notre magasin. Veuillez contacter un responsable si vous souhaitez l\'acheter.'
             : null;
       });
     } catch (e) {
@@ -333,7 +333,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
         _isLoading = false;
         _scannedProduct = product;
         _errorMessage = product == null
-            ? 'Aucun produit trouvé avec ce code-barres'
+            ? 'Ce produit n\'est pas disponible à la vente dans notre magasin. Veuillez contacter un responsable si vous souhaitez l\'acheter.'
             : null;
       });
     } catch (e) {

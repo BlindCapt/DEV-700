@@ -162,15 +162,8 @@ namespace API.Controllers
                 return Ok(product);
             }
 
-            // Si le produit n'existe pas en base, essayer de le récupérer depuis OpenFoodFacts
-            var fetchedProduct = await _productService.FetchProductFromOpenFoodFacts(barcode);
-            if (fetchedProduct != null)
-            {
-                fetchedProduct.Barcode = barcode; // Assurer que le code-barres est bien défini
-                return Ok(fetchedProduct);
-            }
-
-            return NotFound("Aucun produit trouvé avec ce code-barres");
+            // Retourner NotFound si le produit n'existe pas dans la base de données
+            return NotFound("Ce produit n'est pas disponible à la vente dans notre magasin.");
         }
 
         public class AddStockRequest
