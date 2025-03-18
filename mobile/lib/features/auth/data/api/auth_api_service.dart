@@ -1,145 +1,177 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../../domain/models/api_user.dart';
 
 class AuthApiService {
-  // URLs de base alternatives pour l'API
-  static const String baseUrl = 'http://10.0.2.2:5094'; // Standard pour Android Emulator
-  static const String alternativeUrl1 = 'http://10.101.53.231:5094'; // Adresse IP Wi-Fi réelle
-  static const String alternativeUrl2 = 'http://192.168.132.1:5094'; // VMware
-  static const String alternativeUrl3 = 'http://192.168.20.1:5094'; // VMware
-  static const String alternativeUrl4 = 'http://192.168.0.1:5094'; // WSL
+  // Liste des URLs API à essayer
+  final List<String> _apiUrls = [
+    'https://b42e-163-5-3-101.ngrok-free.app', // URL ngrok actuelle
+    // 'http://10.101.53.231:5094', // URL principale
+    // 'http://192.168.132.1:5094', // URL alternative (VMware)
+    // 'http://192.168.20.1:5094',  // URL alternative (VMware)
+    // 'http://192.168.0.1:5094',   // URL locale (réseau domestique)
+    // 'http://10.0.2.2:5094',      // URL pour émulateur Android
+  ];
   
-  // URL actuellement utilisée
-  String _currentBaseUrl = alternativeUrl1; // Commencer avec l'adresse Wi-Fi directe
+  // Index de l'URL actuelle
+  int _currentUrlIndex = 0;
   
-  // Endpoints
-  static const String loginEndpoint = '/api/mobile/auth/login';
-  static const String registerEndpoint = '/api/mobile/auth/register';
-  static const String pingEndpoint = '/api/diagnostic/ping';
-
-  // Client HTTP
-  final http.Client _client;
+  // Getter pour l'URL actuelle
+  String get currentApiUrl => _apiUrls[_currentUrlIndex];
   
-  // Constructeur
-  AuthApiService({http.Client? client}) : _client = client ?? http.Client();
-
-  // Méthode pour basculer vers l'URL alternative suivante
+  // Fonction pour basculer vers l'URL suivante
   void switchToNextUrl() {
-    if (_currentBaseUrl == baseUrl) {
-      _currentBaseUrl = alternativeUrl1;
-      debugPrint('Basculé vers l\'URL alternative 1 (Wi-Fi): $_currentBaseUrl');
-    } else if (_currentBaseUrl == alternativeUrl1) {
-      _currentBaseUrl = alternativeUrl2;
-      debugPrint('Basculé vers l\'URL alternative 2 (VMware): $_currentBaseUrl');
-    } else if (_currentBaseUrl == alternativeUrl2) {
-      _currentBaseUrl = alternativeUrl3;
-      debugPrint('Basculé vers l\'URL alternative 3 (VMware): $_currentBaseUrl');
-    } else if (_currentBaseUrl == alternativeUrl3) {
-      _currentBaseUrl = alternativeUrl4;
-      debugPrint('Basculé vers l\'URL alternative 4 (WSL): $_currentBaseUrl');
-    } else {
-      _currentBaseUrl = baseUrl;
-      debugPrint('Revenu à l\'URL de base (Emulator): $_currentBaseUrl');
+    _currentUrlIndex = (_currentUrlIndex + 1) % _apiUrls.length;
+    debugPrint('Basculé vers l\'URL alternative ${_currentUrlIndex + 1}: $currentApiUrl');
+  }
+  
+  // Nouvelles méthodes pour la détection dynamique d'adresse IP
+  Future<void> detectLocalApiServer() async {
+    debugPrint('Tentative de détection automatique du serveur API...');
+    
+    // Récupérer l'adresse IP de l'appareil
+    String? deviceIp = await _getDeviceIpAddress();
+    if (deviceIp != null) {
+      debugPrint('Adresse IP de l\'appareil: $deviceIp');
+      
+      // Extraire le préfixe du réseau (ex: 192.168.1)
+      final parts = deviceIp.split('.');
+      if (parts.length == 4) {
+        final networkPrefix = '${parts[0]}.${parts[1]}.${parts[2]}';
+        
+        // Ajouter une nouvelle URL basée sur le réseau actuel
+        final newApiUrl = 'http://$networkPrefix.1:5094';
+        
+        // Vérifier si cette URL existe déjà dans la liste
+        if (!_apiUrls.contains(newApiUrl)) {
+          debugPrint('Ajout d\'une nouvelle URL basée sur le réseau actuel: $newApiUrl');
+          _apiUrls.insert(0, newApiUrl);
+          _currentUrlIndex = 0;
+        }
+      }
+    }
+    
+    // Si l'appareil est connecté à Internet, ajouter l'option de serveur externe
+    bool hasInternet = await _checkInternetConnectivity();
+    if (hasInternet) {
+      const externalApiUrl = 'https://votreserveur.com/api'; // Remplacez par votre serveur externe réel
+      if (!_apiUrls.contains(externalApiUrl)) {
+        debugPrint('Ajout de l\'URL du serveur externe: $externalApiUrl');
+        _apiUrls.add(externalApiUrl);
+      }
     }
   }
-
-  // Méthode pour se connecter
-  Future<ApiUser> login(String email, String password) async {
+  
+  Future<String?> _getDeviceIpAddress() async {
     try {
-      final uri = Uri.parse('$_currentBaseUrl$loginEndpoint');
-      debugPrint('Tentative de connexion à l\'URI: $uri');
-      debugPrint('Avec les données: email=$email, password=***');
-      
-      final response = await _client.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'email': email,
-          'password': password,
-        }),
-      ).timeout(
-        const Duration(seconds: 30), // Augmenté à 30 secondes
-        onTimeout: () {
-          debugPrint('La requête a expiré après 30 secondes');
-          throw Exception('Délai d\'attente dépassé lors de la connexion à $uri');
-        },
+      // Récupérer toutes les interfaces réseau
+      List<NetworkInterface> interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.IPv4,
       );
-
-      debugPrint('Réponse du serveur: code=${response.statusCode}, body=${response.body}');
       
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        debugPrint('Données reçues: $data');
-        
-        // Combiner les données de l'utilisateur avec le token
-        final userData = data['user'] as Map<String, dynamic>;
-        userData['token'] = data['token'];
-        
-        return ApiUser.fromJson(userData);
-      } else {
-        throw Exception('Échec de connexion: ${response.body}');
+      // Filtrer pour obtenir les interfaces Wi-Fi et cellulaires
+      for (var interface in interfaces) {
+        for (var addr in interface.addresses) {
+          // Exclure les adresses de bouclage (127.x.x.x)
+          if (!addr.address.startsWith('127.')) {
+            return addr.address;
+          }
+        }
       }
     } catch (e) {
-      debugPrint('Erreur lors de la connexion: $e');
-      rethrow;
+      debugPrint('Erreur lors de la récupération de l\'adresse IP: $e');
+    }
+    return null;
+  }
+  
+  Future<bool> _checkInternetConnectivity() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
     }
   }
-
-  // Méthode pour tester le ping avant toute connexion
+  
+  // Mode de fonctionnement hors ligne (cache)
+  bool _offlineMode = false;
+  
+  // Activer/désactiver le mode hors ligne
+  void setOfflineMode(bool enabled) {
+    _offlineMode = enabled;
+    debugPrint('Mode hors ligne ${_offlineMode ? 'activé' : 'désactivé'}');
+  }
+  
+  // Tester si le serveur répond (fonction de ping)
   Future<bool> testPing() async {
-    final allUrls = [alternativeUrl1, alternativeUrl2, alternativeUrl3, alternativeUrl4, baseUrl];
+    // Si en mode hors ligne, ne pas tester le ping
+    if (_offlineMode) {
+      debugPrint('Mode hors ligne actif, ping ignoré');
+      return false;
+    }
     
-    for (final url in allUrls) {
+    // Ajouter la détection d'adresse IP locale d'abord
+    await detectLocalApiServer();
+    
+    // Tester chaque URL
+    for (var i = 0; i < _apiUrls.length; i++) {
+      _currentUrlIndex = i;
+      final apiUrl = _apiUrls[i];
+      
+      debugPrint('Test de ping avec: $apiUrl/api/diagnostic/ping');
+      
       try {
-        final pingUri = Uri.parse('$url$pingEndpoint');
-        debugPrint('Test de ping avec: $pingUri');
+        final response = await http.get(
+          Uri.parse('$apiUrl/api/diagnostic/ping'),
+        ).timeout(const Duration(seconds: 5));
         
-        final response = await _client.get(
-          pingUri,
-        ).timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            debugPrint('Le ping a expiré après 5 secondes pour $url');
-            return http.Response('{"error":"timeout"}', 408);
-          },
-        );
-
         if (response.statusCode == 200) {
-          debugPrint('Ping réussi avec $url: ${response.body}');
-          // Mettre à jour l'URL actuelle en cas de succès
-          _currentBaseUrl = url;
+          debugPrint('Ping réussi avec $apiUrl: ${response.body}');
           return true;
         } else {
-          debugPrint('Échec du ping avec $url: Code ${response.statusCode}');
+          debugPrint('Échec du ping avec $apiUrl: Code ${response.statusCode}');
         }
+      } on TimeoutException {
+        debugPrint('Le ping a expiré après 5 secondes pour $apiUrl');
+      } on SocketException catch (e) {
+        debugPrint('Erreur lors du ping de $apiUrl: $e');
       } catch (e) {
-        debugPrint('Erreur lors du ping de $url: $e');
+        debugPrint('Erreur lors du ping de $apiUrl: $e');
       }
     }
     
+    debugPrint('Aucun serveur n\'a répondu au ping');
+    
+    // Si aucun serveur ne répond, activer le mode hors ligne
+    setOfflineMode(true);
     return false;
   }
 
-  // Méthode pour s'inscrire
-  Future<Map<String, dynamic>> register({
+  // Fonction d'inscription
+  Future<bool> register({
     required String email,
     required String password,
     required String firstName,
     required String lastName,
     required String phoneNumber,
   }) async {
+    // Si en mode hors ligne, simuler une erreur
+    if (_offlineMode) {
+      throw Exception('Vous êtes en mode hors ligne. Veuillez vous connecter à Internet pour vous inscrire.');
+    }
+    
+    final url = '$currentApiUrl/api/mobile/auth/register';
+    debugPrint('Tentative d\'inscription à l\'URI: $url');
+    
     try {
-      final response = await _client.post(
-        Uri.parse('$_currentBaseUrl$registerEndpoint'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'email': email,
           'password': password,
@@ -147,47 +179,109 @@ class AuthApiService {
           'lastName': lastName,
           'phoneNumber': phoneNumber,
         }),
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint('Inscription réussie');
+        return true;
       } else {
-        throw Exception('Échec d\'inscription: ${response.body}');
+        debugPrint('Échec de l\'inscription: ${response.statusCode} - ${response.body}');
+        throw Exception('Échec de l\'inscription: ${response.statusCode}');
       }
+    } on TimeoutException {
+      debugPrint('La requête a expiré après 30 secondes');
+      throw Exception('Délai d\'attente dépassé lors de l\'inscription à $url');
     } catch (e) {
       debugPrint('Erreur lors de l\'inscription: $e');
       rethrow;
     }
   }
-
-  // Méthode pour tester la connectivité au serveur
-  Future<bool> testConnectivity() async {
-    for (final baseUrl in [baseUrl, alternativeUrl1, alternativeUrl2]) {
-      try {
-        debugPrint('Test de connectivité avec: $baseUrl/api/diagnostic/jwt-config');
-        
-        final response = await _client.get(
-          Uri.parse('$baseUrl/api/diagnostic/jwt-config'),
-        ).timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            debugPrint('Le test a expiré après 5 secondes pour $baseUrl');
-            throw Exception('Délai d\'attente dépassé pour $baseUrl');
-          },
+  
+  // Fonction de connexion
+  Future<ApiUser> login(String email, String password) async {
+    // Si en mode hors ligne, vérifier les identifiants localement
+    if (_offlineMode) {
+      // Simulation de connexion hors ligne (à remplacer par une vraie vérification locale)
+      if (email == 'test@dev700.com' && password == 'test123') {
+        return ApiUser(
+          id: 1,
+          email: email,
+          firstName: 'Test',
+          lastName: 'User',
+          phoneNumber: '0123456789',
+          token: 'offline-token',
         );
-
-        if (response.statusCode == 200) {
-          debugPrint('Connectivité réussie avec $baseUrl: ${response.body}');
-          // Mettre à jour l'URL actuelle en cas de succès
-          _currentBaseUrl = baseUrl;
-          return true;
-        } else {
-          debugPrint('Échec avec $baseUrl: Code ${response.statusCode}');
-        }
-      } catch (e) {
-        debugPrint('Erreur lors du test de $baseUrl: $e');
+      } else {
+        throw Exception('Identifiants invalides en mode hors ligne');
       }
     }
-    return false;
+    
+    final url = '$currentApiUrl/api/mobile/auth/login';
+    debugPrint('Tentative de connexion à l\'URI: $url');
+    debugPrint('Avec les données: email=$email, password=***');
+    
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email, 'password': password}),
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        debugPrint('Connexion réussie: ${response.body}');
+        
+        // Désactiver le mode hors ligne puisque la connexion fonctionne
+        setOfflineMode(false);
+        
+        // La réponse contient un objet "user" et un "token" séparé
+        final userData = data['user']; 
+        final token = data['token'];
+        
+        return ApiUser(
+          id: userData['id'] as int,
+          email: userData['email'] as String,
+          firstName: userData['firstName'] as String,
+          lastName: userData['lastName'] as String,
+          // Le phoneNumber peut être manquant dans la réponse de l'API
+          phoneNumber: userData['phoneNumber'] ?? '0000000000',  // Valeur par défaut
+          token: token,
+        );
+      } else {
+        debugPrint('Échec de la connexion: ${response.statusCode} - ${response.body}');
+        throw Exception('Échec de la connexion: ${response.statusCode}');
+      }
+    } on TimeoutException {
+      debugPrint('La requête a expiré après 30 secondes');
+      throw Exception('Délai d\'attente dépassé lors de la connexion à $url');
+    } on SocketException catch (e) {
+      debugPrint('Erreur de connexion: $e');
+      if (e.message.contains('No route to host')) {
+        throw Exception('Impossible d\'accéder au serveur. Vérifiez votre connexion réseau.');
+      } else if (e.message.contains('Connection refused')) {
+        throw Exception('Le serveur refuse la connexion. Vérifiez que l\'API est bien en cours d\'exécution.');
+      } else {
+        throw Exception('Erreur de connexion: ${e.message}');
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de la connexion: $e');
+      rethrow;
+    }
+  }
+  
+  // Ne pas oublier d'ajouter cette fonction de débogage
+  void debugPrint(String message) {
+    // Pour éviter des erreurs si le package flutter n'est pas importé
+    print(message);
+  }
+
+  // Méthode pour mettre à jour dynamiquement l'URL ngrok
+  void updateNgrokUrl(String newNgrokUrl) {
+    if (_apiUrls.isNotEmpty) {
+      _apiUrls[0] = newNgrokUrl;
+      debugPrint('URL ngrok mise à jour: $newNgrokUrl');
+      // Reset le compteur d'URL pour essayer la nouvelle URL en premier
+      _currentUrlIndex = 0;
+    }
   }
 } 

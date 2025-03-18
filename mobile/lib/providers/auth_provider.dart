@@ -10,12 +10,16 @@ class AuthState {
   final bool isLoading;
   final String? error;
   final ApiUser? user;
+  final bool isOfflineMode;
+  final String? currentApiUrl;
   
   AuthState({
     this.isAuthenticated = false,
     this.isLoading = false,
     this.error,
     this.user,
+    this.isOfflineMode = false,
+    this.currentApiUrl,
   });
 
   // Méthode pour copier l'état avec des propriétés modifiées
@@ -24,12 +28,16 @@ class AuthState {
     bool? isLoading,
     String? error,
     ApiUser? user,
+    bool? isOfflineMode,
+    String? currentApiUrl,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       user: user ?? this.user,
+      isOfflineMode: isOfflineMode ?? this.isOfflineMode,
+      currentApiUrl: currentApiUrl ?? this.currentApiUrl,
     );
   }
 }
@@ -51,83 +59,48 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Tester le ping d'abord pour trouver la meilleure URL
+      // Tester le ping d'abord pour trouver la meilleure URL et déterminer si on est en ligne
       debugPrint('Test de ping avant connexion');
       bool pingSuccess = await _authService.testPing();
       
       if (!pingSuccess) {
         debugPrint('Aucun serveur n\'a répondu au ping');
+        // On est probablement en mode hors ligne
+        state = state.copyWith(isOfflineMode: true);
       } else {
         debugPrint('Ping réussi, tentative de connexion');
+        state = state.copyWith(isOfflineMode: false);
       }
       
-      // Tentative de connexion à l'API avec plusieurs essais
+      // Mettre à jour l'URL actuelle
+      state = state.copyWith(currentApiUrl: _authService.currentApiUrl);
+      
+      // Tentative de connexion à l'API
       debugPrint('Tentative de connexion à l\'API');
+      final user = await _authService.login(email, password);
       
-      // Essayer avec plusieurs URLs
-      Exception? lastError;
-      for (int attempt = 0; attempt < 3; attempt++) {
-        try {
-          if (attempt > 0) {
-            // Basculer vers l'URL suivante après le premier essai
-            _authService.switchToNextUrl();
-          }
-          
-          final user = await _authService.login(email, password);
-          
-          state = state.copyWith(
-            isAuthenticated: true,
-            isLoading: false,
-            user: user,
-          );
-          
-          debugPrint('Connexion réussie à l\'API avec token: ${user.token}');
-          return true;
-        } catch (apiError) {
-          lastError = apiError is Exception ? apiError : Exception(apiError.toString());
-          debugPrint('Erreur de connexion à l\'API (tentative ${attempt + 1}/3): $apiError');
-          // Continuez à la prochaine itération pour essayer avec une autre URL
-        }
-      }
+      state = state.copyWith(
+        isAuthenticated: true,
+        isLoading: false,
+        user: user,
+        error: null,
+      );
       
-      // Si nous arrivons ici, toutes les tentatives ont échoué
-      debugPrint('Toutes les tentatives de connexion à l\'API ont échoué');
-      
-      // Mode de connexion de secours (pour les tests)
-      if (email == 'admin' && password == 'admin') {
-        debugPrint('Mode de connexion de secours (admin/admin)');
-        await Future.delayed(const Duration(seconds: 1));
-        
-        // Créer un utilisateur fictif
-        final fakeUser = ApiUser(
-          id: 0,
-          email: 'admin@dev700.com',
-          firstName: 'Admin',
-          lastName: 'Test',
-          phoneNumber: '0123456789',
-          token: 'fake-token',
-        );
-        
-        state = state.copyWith(
-          isAuthenticated: true,
-          isLoading: false,
-          user: fakeUser,
-        );
-        
-        debugPrint('Connexion réussie en mode de secours');
-        return true;
-      }
-      
-      // Si ce n'est pas le mode de secours, propager l'erreur
-      throw lastError ?? Exception('Erreur de connexion');
+      debugPrint('Connexion réussie à l\'API avec token: ${user.token}');
+      return true;
     } catch (e) {
       debugPrint('Erreur de connexion: $e');
+      String errorMessage = e.toString();
+      
+      // Personnaliser le message d'erreur
+      if (errorMessage.contains('Exception:')) {
+        errorMessage = errorMessage.split('Exception:')[1].trim();
+      }
+      
       state = state.copyWith(
         isAuthenticated: false,
         isLoading: false,
-        error: e.toString().contains('Exception:') 
-            ? e.toString().split('Exception:')[1].trim() 
-            : 'Erreur de connexion: ${e.toString()}',
+        error: errorMessage,
       );
       return false;
     }
@@ -151,10 +124,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       
       if (!pingSuccess) {
         debugPrint('Aucun serveur n\'a répondu au ping');
-        throw Exception('Impossible de contacter le serveur. Veuillez vérifier votre connexion réseau.');
+        if (state.isOfflineMode) {
+          throw Exception('Vous êtes en mode hors ligne. Veuillez vous connecter à Internet pour vous inscrire.');
+        }
       }
       
       debugPrint('Ping réussi, tentative d\'inscription');
+      
+      // Mettre à jour l'URL actuelle
+      state = state.copyWith(currentApiUrl: _authService.currentApiUrl);
       
       // Tentative d'inscription à l'API
       final result = await _authService.register(
@@ -169,25 +147,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
       
       state = state.copyWith(
         isLoading: false,
+        error: null,
       );
       
       return true;
     } catch (e) {
       debugPrint('Erreur lors de l\'inscription: $e');
+      String errorMessage = e.toString();
+      
+      // Personnaliser le message d'erreur
+      if (errorMessage.contains('Exception:')) {
+        errorMessage = errorMessage.split('Exception:')[1].trim();
+      }
+      
       state = state.copyWith(
         isLoading: false,
-        error: e.toString().contains('Exception:') 
-            ? e.toString().split('Exception:')[1].trim() 
-            : 'Erreur d\'inscription: ${e.toString()}',
+        error: errorMessage,
       );
       return false;
     }
   }
 
+  // Méthode pour basculer en mode hors ligne manuellement
+  void toggleOfflineMode(bool enabled) {
+    debugPrint('Bascule du mode hors ligne: $enabled');
+    _authService.setOfflineMode(enabled);
+    state = state.copyWith(isOfflineMode: enabled);
+  }
+
   // Méthode pour se déconnecter
   void logout() {
     debugPrint('Déconnexion de l\'utilisateur: ${state.user?.email}');
-    state = AuthState();
+    state = AuthState(isOfflineMode: state.isOfflineMode);
   }
 
   // Vérifier si l'utilisateur est déjà connecté (à implémenter avec un jeton stocké)
