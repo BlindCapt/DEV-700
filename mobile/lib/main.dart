@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/register_screen.dart';
 import 'features/home/presentation/screens/home_screen.dart';
+import 'features/splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,8 +44,9 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme(), // Thème clair
       darkTheme: AppTheme.darkTheme(), // Thème sombre
       themeMode: ThemeMode.dark, // Forcer le thème sombre
-      initialRoute: '/login', // Route initiale
+      initialRoute: '/', // Changer pour utiliser l'écran de démarrage
       routes: {
+        '/': (context) => const SplashScreen(), // Nouvel écran de démarrage
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),

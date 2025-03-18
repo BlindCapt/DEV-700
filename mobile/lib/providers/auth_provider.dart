@@ -10,16 +10,16 @@ class AuthState {
   final bool isLoading;
   final String? error;
   final ApiUser? user;
-  final bool isOfflineMode;
   final String? currentApiUrl;
+  final String? lastErrorMessage;
   
   AuthState({
     this.isAuthenticated = false,
     this.isLoading = false,
     this.error,
     this.user,
-    this.isOfflineMode = false,
     this.currentApiUrl,
+    this.lastErrorMessage,
   });
 
   // Méthode pour copier l'état avec des propriétés modifiées
@@ -28,16 +28,16 @@ class AuthState {
     bool? isLoading,
     String? error,
     ApiUser? user,
-    bool? isOfflineMode,
     String? currentApiUrl,
+    String? lastErrorMessage,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       user: user ?? this.user,
-      isOfflineMode: isOfflineMode ?? this.isOfflineMode,
       currentApiUrl: currentApiUrl ?? this.currentApiUrl,
+      lastErrorMessage: lastErrorMessage ?? this.lastErrorMessage,
     );
   }
 }
@@ -51,7 +51,66 @@ final authApiServiceProvider = Provider<AuthApiService>((ref) {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthApiService _authService;
   
-  AuthNotifier(this._authService) : super(AuthState());
+  AuthNotifier(this._authService) : super(AuthState()) {
+    // Initialisation - Vérifier s'il y a déjà un token valide
+    restoreUserSession();
+  }
+  
+  // Méthode pour restaurer la session utilisateur si un token valide existe
+  Future<void> restoreUserSession() async {
+    debugPrint('==== DÉBUT restoreUserSession() ====');
+    
+    state = state.copyWith(isLoading: true);
+    
+    try {
+      debugPrint('Vérification de la validité du token');
+      final hasValidToken = await _authService.hasValidToken();
+      
+      if (hasValidToken) {
+        debugPrint('Token valide trouvé, tentative de restauration de la session');
+        
+        // Ping pour obtenir l'URL actuelle
+        await _authService.testPing();
+        debugPrint('Ping réussi, URL API actuelle: ${_authService.currentApiUrl}');
+        
+        // Récupérer les informations de l'utilisateur
+        debugPrint('Récupération des informations utilisateur');
+        final user = await _authService.getCurrentUser();
+        
+        if (user != null) {
+          debugPrint('Informations utilisateur récupérées: ${user.email}');
+          state = state.copyWith(
+            isAuthenticated: true,
+            isLoading: false,
+            user: user,
+            currentApiUrl: _authService.currentApiUrl,
+            lastErrorMessage: _authService.lastErrorMessage,
+          );
+          
+          debugPrint('Session restaurée avec succès pour l\'utilisateur: ${user.email}');
+          debugPrint('État d\'authentification: ${state.isAuthenticated}');
+        } else {
+          debugPrint('Impossible de récupérer les informations de l\'utilisateur');
+          await logout(); // Déconnexion si les informations utilisateur ne peuvent pas être récupérées
+        }
+      } else {
+        debugPrint('Pas de token valide trouvé ou token expiré');
+        state = state.copyWith(
+          isLoading: false,
+          lastErrorMessage: _authService.lastErrorMessage,
+        );
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de la restauration de la session: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+        lastErrorMessage: _authService.lastErrorMessage,
+      );
+    }
+    
+    debugPrint('==== FIN restoreUserSession(), état auth: ${state.isAuthenticated} ====');
+  }
 
   // Méthode pour se connecter
   Future<bool> login(String email, String password) async {
@@ -59,21 +118,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Tester le ping d'abord pour trouver la meilleure URL et déterminer si on est en ligne
+      // Tester le ping d'abord pour trouver la meilleure URL
       debugPrint('Test de ping avant connexion');
-      bool pingSuccess = await _authService.testPing();
-      
-      if (!pingSuccess) {
-        debugPrint('Aucun serveur n\'a répondu au ping');
-        // On est probablement en mode hors ligne
-        state = state.copyWith(isOfflineMode: true);
-      } else {
-        debugPrint('Ping réussi, tentative de connexion');
-        state = state.copyWith(isOfflineMode: false);
-      }
+      await _authService.testPing();
       
       // Mettre à jour l'URL actuelle
-      state = state.copyWith(currentApiUrl: _authService.currentApiUrl);
+      state = state.copyWith(
+        currentApiUrl: _authService.currentApiUrl,
+        lastErrorMessage: _authService.lastErrorMessage,
+      );
       
       // Tentative de connexion à l'API
       debugPrint('Tentative de connexion à l\'API');
@@ -84,6 +137,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         user: user,
         error: null,
+        lastErrorMessage: null,
       );
       
       debugPrint('Connexion réussie à l\'API avec token: ${user.token}');
@@ -101,6 +155,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isAuthenticated: false,
         isLoading: false,
         error: errorMessage,
+        lastErrorMessage: _authService.lastErrorMessage,
       );
       return false;
     }
@@ -120,19 +175,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       // Tester le ping d'abord pour trouver la meilleure URL
       debugPrint('Test de ping avant inscription');
-      bool pingSuccess = await _authService.testPing();
-      
-      if (!pingSuccess) {
-        debugPrint('Aucun serveur n\'a répondu au ping');
-        if (state.isOfflineMode) {
-          throw Exception('Vous êtes en mode hors ligne. Veuillez vous connecter à Internet pour vous inscrire.');
-        }
-      }
+      await _authService.testPing();
       
       debugPrint('Ping réussi, tentative d\'inscription');
       
       // Mettre à jour l'URL actuelle
-      state = state.copyWith(currentApiUrl: _authService.currentApiUrl);
+      state = state.copyWith(
+        currentApiUrl: _authService.currentApiUrl,
+        lastErrorMessage: _authService.lastErrorMessage,
+      );
       
       // Tentative d'inscription à l'API
       final result = await _authService.register(
@@ -148,6 +199,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(
         isLoading: false,
         error: null,
+        lastErrorMessage: null,
       );
       
       return true;
@@ -163,28 +215,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(
         isLoading: false,
         error: errorMessage,
+        lastErrorMessage: _authService.lastErrorMessage,
       );
       return false;
     }
   }
 
-  // Méthode pour basculer en mode hors ligne manuellement
-  void toggleOfflineMode(bool enabled) {
-    debugPrint('Bascule du mode hors ligne: $enabled');
-    _authService.setOfflineMode(enabled);
-    state = state.copyWith(isOfflineMode: enabled);
-  }
-
   // Méthode pour se déconnecter
-  void logout() {
+  Future<void> logout() async {
     debugPrint('Déconnexion de l\'utilisateur: ${state.user?.email}');
-    state = AuthState(isOfflineMode: state.isOfflineMode);
+    
+    // Supprimer le token JWT
+    await _authService.logout();
+    
+    // Réinitialiser l'état
+    state = AuthState();
   }
 
-  // Vérifier si l'utilisateur est déjà connecté (à implémenter avec un jeton stocké)
+  // Vérifier si l'utilisateur est déjà connecté
   Future<bool> checkAuth() async {
-    // Ici, vous pourriez vérifier le stockage local pour un jeton d'authentification
-    debugPrint('Vérification de l\'authentification - isAuthenticated: ${state.isAuthenticated}');
+    await restoreUserSession();
     return state.isAuthenticated;
   }
 }

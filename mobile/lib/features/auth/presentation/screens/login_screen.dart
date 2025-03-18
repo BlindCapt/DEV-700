@@ -87,7 +87,7 @@ class LoginScreen extends HookConsumerWidget {
               ),
             ),
             
-            // Messages d'erreur et d'état
+            // Messages d'erreur
             if (authState.error != null) ...[
               const SizedBox(height: 16),
               Container(
@@ -111,9 +111,9 @@ class LoginScreen extends HookConsumerWidget {
               ),
             ],
             
-            // Indicateur de mode hors ligne
-            if (authState.isOfflineMode) ...[
-              const SizedBox(height: 16),
+            // Détails de l'erreur technique
+            if (authState.lastErrorMessage != null) ...[
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -122,20 +122,16 @@ class LoginScreen extends HookConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.cloud_off, color: Colors.orange),
+                    const Icon(Icons.warning_amber_outlined, color: Colors.orange),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Mode hors ligne activé',
-                        style: TextStyle(color: Colors.orange),
+                        'Détails: ${authState.lastErrorMessage}',
+                        style: const TextStyle(
+                          color: Colors.orange,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                    Switch(
-                      value: authState.isOfflineMode,
-                      activeColor: Colors.orange,
-                      onChanged: (value) {
-                        ref.read(authProvider.notifier).toggleOfflineMode(value);
-                      },
                     ),
                   ],
                 ),
