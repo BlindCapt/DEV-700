@@ -144,6 +144,35 @@ namespace API.Controllers
             return NoContent();
         }
 
+        // Endpoint pour rechercher un produit par code-barres
+        [HttpGet("barcode/{barcode}")]
+        public async Task<IActionResult> GetProductByBarcode(string barcode)
+        {
+            if (string.IsNullOrWhiteSpace(barcode))
+            {
+                return BadRequest("Le code-barres ne peut pas être vide");
+            }
+
+            // Rechercher dans la base de données
+            var product = await _context.Products
+                .FirstOrDefaultAsync(p => p.Barcode == barcode);
+
+            if (product != null)
+            {
+                return Ok(product);
+            }
+
+            // Si le produit n'existe pas en base, essayer de le récupérer depuis OpenFoodFacts
+            var fetchedProduct = await _productService.FetchProductFromOpenFoodFacts(barcode);
+            if (fetchedProduct != null)
+            {
+                fetchedProduct.Barcode = barcode; // Assurer que le code-barres est bien défini
+                return Ok(fetchedProduct);
+            }
+
+            return NotFound("Aucun produit trouvé avec ce code-barres");
+        }
+
         public class AddStockRequest
         {
             public int QuantityToAdd { get; set; }

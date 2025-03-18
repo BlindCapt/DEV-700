@@ -76,6 +76,15 @@ class HomeScreen extends HookConsumerWidget {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.pushNamed(context, '/scanner');
+        },
+        icon: const Icon(Icons.qr_code_scanner),
+        label: const Text('Scanner'),
+        tooltip: 'Scanner un code-barres',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: SingleChildScrollView(
         child: Center(
           child: Column(

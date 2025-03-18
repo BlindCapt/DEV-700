@@ -46,6 +46,8 @@ dependencies:
   # flutter_paypal_checkout: ^1.0.1
   # flutter_inappwebview: ^5.3.2
   dio: ^5.8.0+1
+  mobile_scanner: ^6.0.7
+
 
 dev_dependencies:
   flutter_test:
