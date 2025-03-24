@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/features/auth/data/api/auth_api_service.dart';
+import 'package:mobile/providers/product_provider.dart';
+import 'package:mobile/providers/favorite_provider.dart';
+import 'package:mobile/features/home/presentation/widgets/social_feed_item.dart';
+import 'package:mobile/features/home/presentation/widgets/category_filter.dart';
+
+// Provider pour la catégorie sélectionnée
+final selectedCategoryProvider = StateProvider<String?>((ref) => null);
 
 class HomeScreen extends HookConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -11,6 +18,13 @@ class HomeScreen extends HookConsumerWidget {
     final authState = ref.watch(authProvider);
     final authNotifier = ref.read(authProvider.notifier);
     final authService = ref.read(authApiServiceProvider);
+    final productState = ref.watch(productProvider);
+    final productNotifier = ref.read(productProvider.notifier);
+    final favoriteNotifier = ref.read(favoriteProvider.notifier);
+    final selectedCategory = ref.watch(selectedCategoryProvider);
+    
+    // Charger les produits et les favoris si ce n'est pas déjà fait
+    _loadDataIfNeeded(productState, productNotifier, favoriteNotifier);
     
     // Fonction de déconnexion qui utilise la méthode mise à jour
     void logout() async {
@@ -38,14 +52,16 @@ class HomeScreen extends HookConsumerWidget {
               child: const Text('Annuler'),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
                 if (ngrokUrlController.text.isNotEmpty) {
                   // Mise à jour de l'URL
-                  authService.updateNgrokUrl(ngrokUrlController.text);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('URL ngrok mise à jour: ${ngrokUrlController.text}'))
-                  );
-                  Navigator.pop(context);
+                  await authService.updateNgrokUrl(ngrokUrlController.text);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('URL ngrok mise à jour: ${ngrokUrlController.text}'))
+                    );
+                    Navigator.pop(context);
+                  }
                 }
               },
               child: const Text('Mettre à jour'),
@@ -55,20 +71,10 @@ class HomeScreen extends HookConsumerWidget {
       );
     }
 
-    // Vérifier si l'utilisateur a un token stocké
-    Future<String?> getStoredToken() async {
-      return await authService.getToken();
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('DEV-700 Mobile'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: logout,
-            tooltip: 'Déconnexion',
-          ),
           IconButton(
             icon: const Icon(Icons.link),
             tooltip: 'Configurer URL ngrok',
@@ -76,196 +82,146 @@ class HomeScreen extends HookConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pushNamed(context, '/scanner');
-        },
-        icon: const Icon(Icons.qr_code_scanner),
-        label: const Text('Scanner'),
-        tooltip: 'Scanner un code-barres',
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      body: SingleChildScrollView(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 24),
-              const Icon(
-                Icons.check_circle_outline,
-                size: 80,
-                color: Colors.green,
+      body: _buildBody(context, productState, selectedCategory, ref),
+    );
+  }
+  
+  // Charger les produits et les favoris si ce n'est pas déjà fait
+  void _loadDataIfNeeded(ProductState productState, ProductNotifier productNotifier, FavoriteNotifier favoriteNotifier) {
+    if (productState.products.isEmpty && !productState.isLoading) {
+      // Utiliser Future.microtask pour éviter de déclencher setState pendant le build
+      Future.microtask(() => productNotifier.fetchAllProducts());
+    }
+    
+    // Charger les favoris
+    Future.microtask(() => favoriteNotifier.fetchUserFavorites());
+  }
+  
+  // Construire le corps de la page
+  Widget _buildBody(BuildContext context, ProductState productState, String? selectedCategory, WidgetRef ref) {
+    if (productState.isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Chargement des produits...'),
+          ],
+        ),
+      );
+    }
+    
+    if (productState.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 60, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              'Erreur de chargement',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                productState.error!,
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Connexion réussie !',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Bienvenue, ${authState.user?.firstName} ${authState.user?.lastName}',
-                style: const TextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 24),
-              
-              // Affichage des informations de connexion
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withOpacity(0.5)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.info_outline, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Informations de session',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    FutureBuilder<String?>(
-                      future: getStoredToken(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        
-                        final hasToken = snapshot.data != null;
-                        
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInfoRow(
-                              'État de session',
-                              hasToken ? 'Active (token stocké)' : 'Non persistante',
-                              hasToken ? Colors.green : Colors.orange,
-                            ),
-                            const SizedBox(height: 8),
-                            _buildInfoRow(
-                              'API URL',
-                              authState.currentApiUrl ?? 'Non connecté',
-                              Colors.blue,
-                            ),
-                            const SizedBox(height: 8),
-                            _buildInfoRow(
-                              'Persistance',
-                              hasToken ? 'Le token sera conservé à la fermeture de l\'app' : 'Session temporaire',
-                              hasToken ? Colors.green : Colors.grey,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Indicateur de mode hors ligne
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.cloud_done,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Connecté au serveur',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Contenu supplémentaire
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                ref.read(productProvider.notifier).fetchAllProducts();
+              },
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    if (productState.products.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.shopping_bag_outlined, size: 60, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Aucun produit disponible',
+              style: TextStyle(fontSize: 18),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Filtrer les produits par catégorie si nécessaire
+    final filteredProducts = selectedCategory == null 
+        ? productState.products 
+        : productState.products.where((p) => p.category == selectedCategory).toList();
+    
+    // Afficher le flux social des produits
+    return Column(
+      children: [
+        // Filtre de catégorie
+        if (productState.categories.isNotEmpty)
+          CategoryFilter(
+            categories: productState.categories,
+            selectedCategory: selectedCategory,
+            onCategorySelected: (category) {
+              ref.read(selectedCategoryProvider.notifier).state = category;
+            },
+          ),
+        
+        // Liste de produits
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await ref.read(productProvider.notifier).fetchAllProducts();
+              await ref.read(favoriteProvider.notifier).fetchUserFavorites();
+            },
+            child: filteredProducts.isEmpty
+                ? Center(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        const Icon(Icons.filter_list, size: 60, color: Colors.grey),
+                        const SizedBox(height: 16),
                         const Text(
-                          'Cette application est en cours de développement',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16),
+                          'Aucun produit dans cette catégorie',
+                          style: TextStyle(fontSize: 18),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Fonctionnalité à venir !'),
-                              ),
-                            );
+                            ref.read(selectedCategoryProvider.notifier).state = null;
                           },
-                          child: const Text('Explorer l\'application'),
+                          child: const Text('Voir tous les produits'),
                         ),
                       ],
                     ),
+                  )
+                : GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 8), // Padding réduit, plus besoin d'espace pour le FAB
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2, // 2 éléments par ligne
+                      childAspectRatio: 0.7, // Rapport hauteur/largeur
+                      crossAxisSpacing: 4, // Espacement horizontal
+                      mainAxisSpacing: 4, // Espacement vertical
+                    ),
+                    itemCount: filteredProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = filteredProducts[index];
+                      
+                      return SocialFeedItem(
+                        product: product,
+                      );
+                    },
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
-  // Helper pour construire une ligne d'information
-  Widget _buildInfoRow(String label, String value, Color valueColor) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Flexible(
-          flex: 1,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        const SizedBox(width: 8), // Espace entre le label et la valeur
-        Flexible(
-          flex: 2,
-          child: Text(
-            value,
-            style: TextStyle(
-              color: valueColor,
-              fontWeight: FontWeight.bold,
-            ),
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.end,
           ),
         ),
       ],

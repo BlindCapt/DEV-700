@@ -19,7 +19,7 @@ class AuthApiService {
   static const Duration _timeout = Duration(seconds: 2);
   
   // URL actuelle (obtenue dynamiquement)
-  String _currentApiUrl = 'https://0335-163-5-3-101.ngrok-free.app';
+  String _currentApiUrl = 'https://99c4-163-5-3-101.ngrok-free.app';
   
   // Getter pour l'URL actuelle
   String get currentApiUrl => _currentApiUrl;
@@ -278,10 +278,12 @@ class AuthApiService {
   }
 
   // Méthode pour mettre à jour dynamiquement l'URL ngrok
-  void updateNgrokUrl(String newNgrokUrl) {
+  Future<void> updateNgrokUrl(String newNgrokUrl) async {
     if (_currentApiUrl != newNgrokUrl) {
       _currentApiUrl = newNgrokUrl;
-      debugPrint('URL ngrok mise à jour: $newNgrokUrl');
+      // Enregistre l'URL dans les préférences pour la persistance
+      await _apiUrlResolver.setApiUrl(newNgrokUrl);
+      debugPrint('URL ngrok mise à jour et enregistrée: $newNgrokUrl');
     }
   }
 

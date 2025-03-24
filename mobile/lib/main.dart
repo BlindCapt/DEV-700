@@ -12,6 +12,7 @@ import 'features/splash/splash_screen.dart';
 import 'features/scanner/presentation/screens/barcode_scanner_screen.dart';
 import 'features/cart/presentation/screens/cart_screen.dart';
 import 'features/main/presentation/screens/main_screen.dart';
+import 'features/products/presentation/screens/favorites_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,6 +63,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const MainScreen(), // Remplacer HomeScreen par MainScreen
         '/scanner': (context) => const BarcodeScannerScreen(),
         '/cart': (context) => const CartScreen(), // Ajouter la route vers l'écran du panier
+        '/favorites': (context) => const FavoritesScreen(), // Ajouter la route vers l'écran des favoris
       },
     );
   }

@@ -8,7 +8,7 @@ class ApiUrlResolver {
   static const Duration _timeout = Duration(seconds: 2);
   
   // URL par défaut pour ngrok (à garder à jour lors des redémarrages de ngrok)
-  static const String _defaultNgrokUrl = 'https://0335-163-5-3-101.ngrok-free.app';
+  static const String _defaultNgrokUrl = 'https://99c4-163-5-3-101.ngrok-free.app';
   
   // Récupérer l'URL de l'API, sans détection automatique
   Future<String> getApiUrl() async {
@@ -29,7 +29,16 @@ class ApiUrlResolver {
   
   // Définir manuellement l'URL de l'API
   Future<void> setApiUrl(String url) async {
+    debugPrint('Tentative de définition de l\'URL API à: $url');
+    
+    // On enregistre l'URL sans vérifier le ping
     await _saveApiUrl(url);
+    
+    // On tente le ping pour informer l'utilisateur, mais on ne bloque pas la mise à jour
+    final pingSuccessful = await pingUrl(url);
+    debugPrint(pingSuccessful 
+        ? 'Ping vers $url réussi après mise à jour' 
+        : 'Ping vers $url échoué, mais URL enregistrée quand même');
   }
   
   // Enregistrer l'URL dans les préférences

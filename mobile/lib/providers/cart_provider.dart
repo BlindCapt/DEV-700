@@ -125,7 +125,7 @@ class CartNotifier extends StateNotifier<CartState> {
     }
   }
   
-  // Ajouter un produit au panier
+  // Ajouter un produit au panier avec une quantité donnée
   Future<void> addToCart(Product product, int quantity) async {
     try {
       // Vérifier si l'utilisateur est authentifié avec plusieurs tentatives
@@ -179,6 +179,11 @@ class CartNotifier extends StateNotifier<CartState> {
       );
       debugPrint('Erreur lors de l\'ajout au panier: $e');
     }
+  }
+  
+  // Ajouter un produit au panier (quantité 1)
+  Future<void> addItemToCart(Product product) async {
+    await addToCart(product, 1);
   }
   
   // Modifier la quantité d'un produit dans le panier

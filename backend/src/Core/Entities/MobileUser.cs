@@ -14,5 +14,6 @@ namespace Core.Entities
         
         // Relations
         public List<Cart> Carts { get; set; } = new List<Cart>();
+        public List<Favorite> Favorites { get; set; } = new List<Favorite>();
     }
 } 

@@ -53,4 +53,46 @@ class ProductApiService {
       return null;
     }
   }
+  
+  // Récupérer tous les produits
+  Future<List<Product>> getAllProducts() async {
+    debugPrint('Récupération de tous les produits');
+    
+    try {
+      // Test ping pour établir la connexion si nécessaire
+      await _authService.testPing();
+      
+      // Construire l'URL de l'endpoint
+      final url = '${_authService.currentApiUrl}/api/products';
+      debugPrint('Appel API: $url');
+      
+      // Récupérer le token d'authentification
+      final token = await _authService.getToken();
+      
+      // Préparer les en-têtes de la requête
+      final headers = {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
+      
+      // Envoyer la requête
+      final response = await http.get(
+        Uri.parse(url),
+        headers: headers,
+      ).timeout(const Duration(seconds: 15));
+      
+      // Traiter la réponse
+      if (response.statusCode == 200) {
+        debugPrint('Produits trouvés');
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => Product.fromJson(item)).toList();
+      } else {
+        debugPrint('Erreur lors de la récupération des produits: ${response.statusCode} ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de la récupération des produits: $e');
+      return [];
+    }
+  }
 } 

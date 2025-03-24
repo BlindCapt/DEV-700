@@ -78,11 +78,7 @@ class ProfileScreen extends ConsumerWidget {
           icon: Icons.favorite,
           title: 'Mes favoris',
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Fonctionnalité non implémentée'),
-              ),
-            );
+            Navigator.pushNamed(context, '/favorites');
           },
         ),
         _buildProfileMenuItem(

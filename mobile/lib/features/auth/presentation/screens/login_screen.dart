@@ -3,6 +3,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../../providers/auth_provider.dart';
+import '../../../../features/auth/data/api/auth_api_service.dart';
 
 class LoginScreen extends HookConsumerWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -10,6 +11,7 @@ class LoginScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final authService = ref.read(authApiServiceProvider);
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     
@@ -31,9 +33,67 @@ class LoginScreen extends HookConsumerWidget {
       }
     }
     
+    // Fonction pour afficher la boîte de dialogue de mise à jour d'URL ngrok
+    void _showNgrokUpdateDialog() {
+      final TextEditingController ngrokUrlController = TextEditingController();
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Configurer l\'URL ngrok'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Entrez l\'URL complète générée par ngrok :',
+                style: TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: ngrokUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'URL ngrok',
+                  hintText: 'https://votre-url.ngrok-free.app'
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (ngrokUrlController.text.isNotEmpty) {
+                  // Mise à jour de l'URL (asynchrone)
+                  await authService.updateNgrokUrl(ngrokUrlController.text);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('URL ngrok mise à jour: ${ngrokUrlController.text}'))
+                    );
+                    Navigator.pop(context);
+                  }
+                }
+              },
+              child: const Text('Mettre à jour'),
+            ),
+          ],
+        ),
+      );
+    }
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('DEV-700 Mobile'),
+        actions: [
+          // Bouton de configuration de l'URL ngrok
+          IconButton(
+            icon: const Icon(Icons.link),
+            tooltip: 'Configurer URL ngrok',
+            onPressed: _showNgrokUpdateDialog,
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
