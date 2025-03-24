@@ -160,27 +160,45 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
   
   // Méthode pour initialiser le panier de l'utilisateur
+  bool _initializationInProgress = false;
+  bool _cartInitialized = false;
+  
   Future<void> _initializeCart() async {
     debugPrint('==== DEBUT _initializeCart() ====');
+    
+    // Éviter les initialisations multiples simultanées
+    if (_initializationInProgress) {
+      debugPrint('Initialisation du panier déjà en cours, ignoré');
+      return;
+    }
+    
+    // Éviter les réinitialisations inutiles
+    if (_cartInitialized) {
+      debugPrint('Panier déjà initialisé, ignoré');
+      return;
+    }
+    
+    _initializationInProgress = true;
+    
     try {
-      // Attendre un court instant pour s'assurer que la session est complètement établie
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Délai réduit pour améliorer les performances
+      await Future.delayed(const Duration(milliseconds: 200));
       
       // Vérifier que l'utilisateur est bien authentifié
       final token = await _authService.getToken();
       if (token == null) {
         debugPrint('Aucun token trouvé pour initialiser le panier');
         debugPrint('==== FIN _initializeCart(): Echec (aucun token) ====');
+        _initializationInProgress = false;
         return;
       }
       
       debugPrint('Token disponible pour initialiser le panier (longueur: ${token.length})');
       
-      // Système de tentatives multiples pour assurer la création du panier
-      bool panierInitialise = false;
-      int maxTentatives = 3;
+      // Système de tentatives optimisé
+      int maxTentatives = 2; // Réduit de 3 à 2
       
-      for (int tentative = 1; tentative <= maxTentatives && !panierInitialise; tentative++) {
+      for (int tentative = 1; tentative <= maxTentatives; tentative++) {
         debugPrint('Tentative d\'initialisation du panier ${tentative}/$maxTentatives');
         
         // Étape 1: Essayer de récupérer un panier existant
@@ -189,8 +207,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Étape 2: Si le panier existe, nous avons terminé
         if (cartItems.isNotEmpty) {
           debugPrint('Panier existant récupéré: ${cartItems.length} articles');
-          panierInitialise = true;
-          break;
+          _cartInitialized = true;
+          _initializationInProgress = false;
+          debugPrint('==== FIN _initializeCart(): Succès (panier existant) ====');
+          return;
         }
         
         // Étape 3: Si aucun panier n'existe, en créer un nouveau
@@ -201,31 +221,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
           debugPrint('Nouveau panier créé avec succès');
           
           // Vérifier que le panier a bien été créé en le récupérant
-          await Future.delayed(const Duration(milliseconds: 500)); // Attendre que le serveur traite la création
+          // Délai réduit pour améliorer les performances
+          await Future.delayed(const Duration(milliseconds: 200));
           cartItems = await _cartService.fetchCart();
           
           if (cartItems.isNotEmpty) {
             debugPrint('Panier récupéré après création: ${cartItems.length} articles');
-            panierInitialise = true;
-          } else {
-            debugPrint('Panier créé mais impossible à récupérer. Réessai...');
+            _cartInitialized = true;
+            _initializationInProgress = false;
+            debugPrint('==== FIN _initializeCart(): Succès (nouveau panier) ====');
+            return;
           }
-        } else {
-          debugPrint('Échec de la création du panier à la tentative $tentative');
-          
-          // Attendre un peu plus longtemps entre chaque tentative
-          await Future.delayed(Duration(seconds: tentative)); 
+        }
+        
+        // Attendre moins longtemps entre les tentatives
+        if (tentative < maxTentatives) {
+          await Future.delayed(const Duration(milliseconds: 300));
         }
       }
       
-      if (panierInitialise) {
-        debugPrint('Panier initialisé avec succès');
-      } else {
-        debugPrint('Impossible d\'initialiser le panier après $maxTentatives tentatives');
-      }
-      
+      debugPrint('Impossible d\'initialiser le panier après $maxTentatives tentatives');
     } catch (e) {
       debugPrint('Erreur lors de l\'initialisation du panier: $e');
+    } finally {
+      _initializationInProgress = false;
     }
     
     debugPrint('==== FIN _initializeCart() ====');

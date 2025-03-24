@@ -10,6 +10,20 @@ import '../../domain/models/cart_item.dart';
 class CartApiService {
   final ApiUrlResolver _apiUrlResolver = ApiUrlResolver();
   final TokenManager _tokenManager = TokenManager();
+  
+  // Durée de timeout des requêtes HTTP
+  static const Duration _timeout = Duration(seconds: 2);
+  
+  // URL de l'API mise en cache
+  String? _cachedApiUrl;
+
+  // Récupérer l'URL de l'API avec mise en cache
+  Future<String> _getApiUrl() async {
+    if (_cachedApiUrl == null) {
+      _cachedApiUrl = await _apiUrlResolver.getApiUrl();
+    }
+    return _cachedApiUrl!;
+  }
 
   // Récupérer le panier actif de l'utilisateur
   Future<List<CartItem>> fetchCart() async {
@@ -21,7 +35,7 @@ class CartApiService {
         return [];
       }
       
-      final url = await _apiUrlResolver.getApiUrl();
+      final url = await _getApiUrl();
       debugPrint('Récupération du panier depuis: $url/api/carts/active');
 
       final response = await http.get(
@@ -30,7 +44,7 @@ class CartApiService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(_timeout);
 
       if (response.statusCode == 200) {
         debugPrint('Panier récupéré avec succès');
@@ -144,17 +158,16 @@ class CartApiService {
       // Afficher la longueur du token pour débogage
       debugPrint('Token disponible pour créer un panier (longueur: ${token.length})');
       
-      final url = await _apiUrlResolver.getApiUrl();
+      final url = await _getApiUrl();
       debugPrint('Création d\'un nouveau panier à: $url/api/carts');
 
-      // Ajout d'un timeout plus long pour les réseaux lents
       final response = await http.post(
         Uri.parse('$url/api/carts'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      ).timeout(const Duration(seconds: 15));  // Augmenter le timeout à 15 secondes
+      ).timeout(_timeout);
 
       final success = response.statusCode == 201 || response.statusCode == 200;
       
@@ -184,7 +197,7 @@ class CartApiService {
   // Ajouter un produit au panier
   Future<bool> addToCart(int productId, int quantity) async {
     try {
-      final url = await _apiUrlResolver.getApiUrl();
+      final url = await _getApiUrl();
       final token = await _tokenManager.getToken();
       
       if (token == null) {
@@ -201,7 +214,7 @@ class CartApiService {
           'productId': productId,
           'quantity': quantity,
         }),
-      );
+      ).timeout(_timeout);
 
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
@@ -213,7 +226,7 @@ class CartApiService {
   // Mettre à jour la quantité d'un produit dans le panier
   Future<bool> updateCartItem(int productId, int quantity) async {
     try {
-      final url = await _apiUrlResolver.getApiUrl();
+      final url = await _getApiUrl();
       final token = await _tokenManager.getToken();
       
       if (token == null) {
@@ -229,7 +242,7 @@ class CartApiService {
         body: jsonEncode({
           'quantity': quantity,
         }),
-      );
+      ).timeout(_timeout);
 
       return response.statusCode == 200;
     } catch (e) {
@@ -241,7 +254,7 @@ class CartApiService {
   // Supprimer un produit du panier
   Future<bool> removeFromCart(int productId) async {
     try {
-      final url = await _apiUrlResolver.getApiUrl();
+      final url = await _getApiUrl();
       final token = await _tokenManager.getToken();
       
       if (token == null) {
@@ -254,7 +267,7 @@ class CartApiService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(_timeout);
 
       return response.statusCode == 200;
     } catch (e) {
@@ -266,7 +279,7 @@ class CartApiService {
   // Vider le panier
   Future<bool> clearCart() async {
     try {
-      final url = await _apiUrlResolver.getApiUrl();
+      final url = await _getApiUrl();
       final token = await _tokenManager.getToken();
       
       if (token == null) {
@@ -279,7 +292,7 @@ class CartApiService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(_timeout);
 
       return response.statusCode == 200;
     } catch (e) {

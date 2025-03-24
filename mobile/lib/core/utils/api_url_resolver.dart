@@ -5,43 +5,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiUrlResolver {
   static const String _apiUrlKey = 'api_url';
-  static const Duration _timeout = Duration(seconds: 5);
+  static const Duration _timeout = Duration(seconds: 2);
   
-  // URL par défaut pour ngrok (à remplacer par votre URL)
-  static const String _defaultNgrokUrl = 'https://e348-2a04-cec2-a-b47f-546a-73c7-c44c-f63f.ngrok-free.app';
+  // URL par défaut pour ngrok (à garder à jour lors des redémarrages de ngrok)
+  static const String _defaultNgrokUrl = 'https://0335-163-5-3-101.ngrok-free.app';
   
-  // URL de développement locale
-  static const String _localDevUrl = 'http://192.0.0.1:5094';
-  
-  // Récupérer l'URL de l'API, avec détection automatique si nécessaire
+  // Récupérer l'URL de l'API, sans détection automatique
   Future<String> getApiUrl() async {
     final prefs = await SharedPreferences.getInstance();
     String? apiUrl = prefs.getString(_apiUrlKey);
     
-    // Si l'URL est stockée et valide, la retourner
+    // Si l'URL est stockée, la retourner directement sans ping
     if (apiUrl != null) {
-      // Vérifier que l'URL est toujours valide avec un ping
-      if (await _pingUrl(apiUrl)) {
-        return apiUrl;
-      }
+      debugPrint('Utilisation de l\'URL API stockée: $apiUrl');
+      return apiUrl;
     }
     
-    // Sinon, essayer de détecter automatiquement
-    debugPrint('Tentative de détection automatique du serveur API...');
-    
-    // Essayer d'abord l'URL locale
-    if (await _pingUrl(_localDevUrl)) {
-      await _saveApiUrl(_localDevUrl);
-      return _localDevUrl;
-    }
-    
-    // Ensuite, essayer l'URL ngrok par défaut
-    if (await _pingUrl(_defaultNgrokUrl)) {
-      await _saveApiUrl(_defaultNgrokUrl);
-      return _defaultNgrokUrl;
-    }
-    
-    // Si toutes les tentatives échouent, retourner l'URL par défaut
+    // Sinon, utiliser l'URL ngrok par défaut
+    await _saveApiUrl(_defaultNgrokUrl);
+    debugPrint('Utilisation de l\'URL ngrok par défaut: $_defaultNgrokUrl');
     return _defaultNgrokUrl;
   }
   
@@ -57,8 +39,8 @@ class ApiUrlResolver {
     debugPrint('URL API enregistrée: $url');
   }
   
-  // Tester si une URL est valide avec un ping
-  Future<bool> _pingUrl(String baseUrl) async {
+  // Tester si une URL est valide avec un ping - utilisé uniquement pour les tests manuels
+  Future<bool> pingUrl(String baseUrl) async {
     try {
       final url = '$baseUrl/api/diagnostic/ping';
       debugPrint('Test de ping avec: $url');

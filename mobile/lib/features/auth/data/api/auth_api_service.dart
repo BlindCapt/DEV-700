@@ -6,33 +6,27 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../../core/constants/app_constants.dart';
 import '../../../../../core/utils/token_manager.dart';
+import '../../../../../core/utils/api_url_resolver.dart';
 
 import '../../domain/models/api_user.dart';
 
 class AuthApiService {
   // Gestionnaire de token unifié
   final TokenManager _tokenManager = TokenManager();
+  final ApiUrlResolver _apiUrlResolver = ApiUrlResolver();
   
-  // Liste des URLs API à essayer
-  final List<String> _apiUrls = [
-    'https://e348-2a04-cec2-a-b47f-546a-73c7-c44c-f63f.ngrok-free.app', // URL ngrok actuelle
-  ];
+  // Durée de timeout des requêtes
+  static const Duration _timeout = Duration(seconds: 2);
   
-  // Index de l'URL actuelle
-  int _currentUrlIndex = 0;
+  // URL actuelle (obtenue dynamiquement)
+  String _currentApiUrl = 'https://0335-163-5-3-101.ngrok-free.app';
   
   // Getter pour l'URL actuelle
-  String get currentApiUrl => _apiUrls[_currentUrlIndex];
+  String get currentApiUrl => _currentApiUrl;
   
   // Information sur la dernière erreur
   String? _lastErrorMessage;
   String? get lastErrorMessage => _lastErrorMessage;
-  
-  // Fonction pour basculer vers l'URL suivante
-  void switchToNextUrl() {
-    _currentUrlIndex = (_currentUrlIndex + 1) % _apiUrls.length;
-    debugPrint('Basculé vers l\'URL alternative ${_currentUrlIndex + 1}: $currentApiUrl');
-  }
   
   // Méthodes pour la gestion du token JWT en utilisant TokenManager
   Future<void> saveToken(String token) async {
@@ -76,46 +70,26 @@ class AuthApiService {
     
     // Vérifier si le token est valide en faisant un appel simple à l'API
     try {
-      debugPrint('Vérification de la validité du token avec testPingWithToken');
-      bool pingResult = await testPingWithToken(token);
-      debugPrint('==== FIN hasValidToken(): ${pingResult ? "Token valide" : "Token invalide"} ====');
-      return pingResult;
+      debugPrint('Vérification de la validité du token');
+      // Mettre à jour l'URL actuelle de l'API
+      _currentApiUrl = await _apiUrlResolver.getApiUrl();
+      
+      final response = await http.get(
+        Uri.parse('$_currentApiUrl/api/mobile/user/validate'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json'
+        },
+      ).timeout(_timeout);
+      
+      bool isValid = response.statusCode == 200;
+      debugPrint('==== FIN hasValidToken(): ${isValid ? "Token valide" : "Token invalide"} ====');
+      return isValid;
     } catch (e) {
       debugPrint('Erreur lors de la validation du token: $e');
       debugPrint('==== FIN hasValidToken(): Exception ====');
       return false;
     }
-  }
-  
-  Future<bool> testPingWithToken(String token) async {
-    // Tester chaque URL avec le token pour vérifier sa validité
-    for (var i = 0; i < _apiUrls.length; i++) {
-      _currentUrlIndex = i;
-      final apiUrl = _apiUrls[i];
-      
-      debugPrint('Test de validité du token avec: $apiUrl/api/mobile/user/validate');
-      
-      try {
-        final response = await http.get(
-          Uri.parse('$apiUrl/api/mobile/user/validate'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json'
-          },
-        ).timeout(const Duration(seconds: 5));
-        
-        if (response.statusCode == 200) {
-          debugPrint('Token valide pour $apiUrl');
-          return true;
-        } else {
-          debugPrint('Token invalide pour $apiUrl: Code ${response.statusCode}');
-        }
-      } catch (e) {
-        debugPrint('Erreur lors de la validation du token pour $apiUrl: $e');
-      }
-    }
-    
-    return false;
   }
   
   Future<void> clearToken() async {
@@ -139,114 +113,36 @@ class AuthApiService {
     return client;
   }
   
-  // Nouvelles méthodes pour la détection dynamique d'adresse IP
-  Future<void> detectLocalApiServer() async {
-    debugPrint('Tentative de détection automatique du serveur API...');
-    
-    // Récupérer l'adresse IP de l'appareil
-    String? deviceIp = await _getDeviceIpAddress();
-    if (deviceIp != null) {
-      debugPrint('Adresse IP de l\'appareil: $deviceIp');
-      
-      // Extraire le préfixe du réseau (ex: 192.168.1)
-      final parts = deviceIp.split('.');
-      if (parts.length == 4) {
-        final networkPrefix = '${parts[0]}.${parts[1]}.${parts[2]}';
-        
-        // Ajouter une nouvelle URL basée sur le réseau actuel
-        final newApiUrl = 'http://$networkPrefix.1:5094';
-        
-        // Vérifier si cette URL existe déjà dans la liste
-        if (!_apiUrls.contains(newApiUrl)) {
-          debugPrint('Ajout d\'une nouvelle URL basée sur le réseau actuel: $newApiUrl');
-          _apiUrls.insert(0, newApiUrl);
-          _currentUrlIndex = 0;
-        }
-      }
-    }
-    
-    // Ajouter quelques adresses IP courantes à essayer
-    final commonIps = [
-      'http://10.0.2.2:5094',      // Émulateur Android
-      'http://192.168.0.1:5094',   // Routeur domestique courant
-      'http://192.168.1.1:5094',   // Routeur domestique courant
-    ];
-    
-    for (var ip in commonIps) {
-      if (!_apiUrls.contains(ip)) {
-        _apiUrls.add(ip);
-      }
-    }
-  }
-  
-  Future<String?> _getDeviceIpAddress() async {
-    try {
-      // Récupérer toutes les interfaces réseau
-      List<NetworkInterface> interfaces = await NetworkInterface.list(
-        includeLoopback: false,
-        type: InternetAddressType.IPv4,
-      );
-      
-      // Filtrer pour obtenir les interfaces Wi-Fi et cellulaires
-      for (var interface in interfaces) {
-        for (var addr in interface.addresses) {
-          // Exclure les adresses de bouclage (127.x.x.x)
-          if (!addr.address.startsWith('127.')) {
-            return addr.address;
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Erreur lors de la récupération de l\'adresse IP: $e');
-    }
-    return null;
-  }
-  
   // Tester si le serveur répond (fonction de ping)
   Future<bool> testPing() async {
-    // Ajouter la détection d'adresse IP locale d'abord
-    await detectLocalApiServer();
-    
-    // Tester chaque URL
-    for (var i = 0; i < _apiUrls.length; i++) {
-      _currentUrlIndex = i;
-      final apiUrl = _apiUrls[i];
+    try {
+      // Obtenir l'URL de l'API résolue
+      _currentApiUrl = await _apiUrlResolver.getApiUrl();
       
-      debugPrint('Test de ping avec: $apiUrl/api/diagnostic/ping');
+      debugPrint('Test de ping avec: $_currentApiUrl/api/diagnostic/ping');
       
-      try {
-        final response = await http.get(
-          Uri.parse('$apiUrl/api/diagnostic/ping'),
-        ).timeout(const Duration(seconds: 5));
-        
-        if (response.statusCode == 200) {
-          debugPrint('Ping réussi avec $apiUrl: ${response.body}');
-          _lastErrorMessage = null;
-          return true;
-        } else {
-          _lastErrorMessage = 'Échec du ping avec $apiUrl: Code ${response.statusCode}';
-          debugPrint(_lastErrorMessage ?? '');
-        }
-      } on TimeoutException {
-        _lastErrorMessage = 'Le ping a expiré après 5 secondes pour $apiUrl';
+      final response = await http.get(
+        Uri.parse('$_currentApiUrl/api/diagnostic/ping'),
+      ).timeout(_timeout);
+      
+      if (response.statusCode == 200) {
+        debugPrint('Ping réussi avec $_currentApiUrl: ${response.body}');
+        _lastErrorMessage = null;
+        return true;
+      } else {
+        _lastErrorMessage = 'Échec du ping avec $_currentApiUrl: Code ${response.statusCode}';
         debugPrint(_lastErrorMessage ?? '');
-      } on SocketException catch (e) {
-        if (e.message.contains('No route to host')) {
-          _lastErrorMessage = 'Aucune route vers l\'hôte $apiUrl: ${e.message}';
-        } else if (e.message.contains('Connection refused')) {
-          _lastErrorMessage = 'Connexion refusée par $apiUrl: ${e.message}';
-        } else {
-          _lastErrorMessage = 'Erreur socket pour $apiUrl: ${e.message}';
-        }
-        debugPrint(_lastErrorMessage ?? '');
-      } catch (e) {
-        _lastErrorMessage = 'Erreur lors du ping de $apiUrl: $e';
-        debugPrint(_lastErrorMessage ?? '');
+        return false;
       }
+    } on TimeoutException {
+      _lastErrorMessage = 'Le ping a expiré après ${_timeout.inSeconds} secondes pour $_currentApiUrl';
+      debugPrint(_lastErrorMessage ?? '');
+      return false;
+    } catch (e) {
+      _lastErrorMessage = 'Erreur lors du ping de $_currentApiUrl: $e';
+      debugPrint(_lastErrorMessage ?? '');
+      return false;
     }
-    
-    debugPrint('Aucun serveur n\'a répondu au ping');
-    return false;
   }
 
   // Fonction d'inscription
@@ -257,7 +153,10 @@ class AuthApiService {
     required String lastName,
     required String phoneNumber,
   }) async {
-    final url = '$currentApiUrl/api/mobile/auth/register';
+    // Obtenir l'URL de l'API résolue
+    _currentApiUrl = await _apiUrlResolver.getApiUrl();
+    
+    final url = '$_currentApiUrl/api/mobile/auth/register';
     debugPrint('Tentative d\'inscription à l\'URI: $url');
     
     try {
@@ -271,7 +170,7 @@ class AuthApiService {
           'lastName': lastName,
           'phoneNumber': phoneNumber,
         }),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(_timeout);
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         debugPrint('Inscription réussie');
@@ -295,7 +194,10 @@ class AuthApiService {
   
   // Fonction de connexion
   Future<ApiUser> login(String email, String password) async {
-    final url = '$currentApiUrl/api/mobile/auth/login';
+    // Obtenir l'URL de l'API résolue
+    _currentApiUrl = await _apiUrlResolver.getApiUrl();
+    
+    final url = '$_currentApiUrl/api/mobile/auth/login';
     debugPrint('Tentative de connexion à l\'URI: $url');
     debugPrint('Avec les données: email=$email, password=***');
     
@@ -304,7 +206,7 @@ class AuthApiService {
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(_timeout);
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -351,16 +253,6 @@ class AuthApiService {
       _lastErrorMessage = 'Délai d\'attente dépassé lors de la connexion à $url';
       debugPrint(_lastErrorMessage ?? '');
       throw Exception(_lastErrorMessage);
-    } on SocketException catch (e) {
-      if (e.message.contains('No route to host')) {
-        _lastErrorMessage = 'Impossible d\'accéder au serveur $url: Aucune route vers l\'hôte';
-      } else if (e.message.contains('Connection refused')) {
-        _lastErrorMessage = 'Le serveur $url refuse la connexion';
-      } else {
-        _lastErrorMessage = 'Erreur de connexion à $url: ${e.message}';
-      }
-      debugPrint(_lastErrorMessage ?? '');
-      throw Exception(_lastErrorMessage);
     } catch (e) {
       _lastErrorMessage = 'Erreur lors de la connexion à $url: $e';
       debugPrint(_lastErrorMessage ?? '');
@@ -387,11 +279,9 @@ class AuthApiService {
 
   // Méthode pour mettre à jour dynamiquement l'URL ngrok
   void updateNgrokUrl(String newNgrokUrl) {
-    if (_apiUrls.isNotEmpty) {
-      _apiUrls[0] = newNgrokUrl;
+    if (_currentApiUrl != newNgrokUrl) {
+      _currentApiUrl = newNgrokUrl;
       debugPrint('URL ngrok mise à jour: $newNgrokUrl');
-      // Reset le compteur d'URL pour essayer la nouvelle URL en premier
-      _currentUrlIndex = 0;
     }
   }
 
