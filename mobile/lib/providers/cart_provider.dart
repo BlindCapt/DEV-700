@@ -12,11 +12,13 @@ class CartState {
   final double totalPrice;
   final bool isLoading;
   final String? error;
+  final DateTime? lastRefreshed;
   
   CartState({
     this.items = const [],
     this.isLoading = false,
     this.error,
+    this.lastRefreshed,
   }) : totalPrice = items.fold(0, (sum, item) => sum + item.totalPrice);
   
   // Créer une copie de l'état avec de nouveaux items
@@ -24,11 +26,13 @@ class CartState {
     List<CartItem>? items,
     bool? isLoading,
     String? error,
+    DateTime? lastRefreshed,
   }) {
     return CartState(
       items: items ?? this.items,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      lastRefreshed: lastRefreshed ?? this.lastRefreshed,
     );
   }
 }
@@ -284,9 +288,42 @@ class CartNotifier extends StateNotifier<CartState> {
     }
   }
   
-  // Recharger manuellement le panier
+  // Rafraîchir le panier
   Future<void> refreshCart() async {
-    await _loadCart();
+    debugPrint('Demande de rafraîchissement du panier');
+    
+    // Vérifier s'il y a eu un rafraîchissement récent (dans les 2 dernières secondes)
+    if (state.lastRefreshed != null) {
+      final timeSinceLastRefresh = DateTime.now().difference(state.lastRefreshed!);
+      if (timeSinceLastRefresh.inSeconds < 2) {
+        debugPrint('Rafraîchissement du panier ignoré - trop récent (${timeSinceLastRefresh.inMilliseconds}ms)');
+        return;
+      }
+    }
+    
+    try {
+      final isAuthenticated = await _checkAuthWithRetry();
+      if (!isAuthenticated) {
+        state = state.copyWith(
+          error: 'Vous devez être connecté pour accéder à votre panier',
+          isLoading: false,
+        );
+        return;
+      }
+      
+      state = state.copyWith(isLoading: true, error: null);
+      await _loadCart();
+      
+      // Enregistrer l'heure du dernier rafraîchissement
+      state = state.copyWith(lastRefreshed: DateTime.now());
+      debugPrint('Panier rafraîchi avec succès: ${state.items.length} articles');
+    } catch (e) {
+      debugPrint('Erreur lors du rafraîchissement du panier: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Erreur lors du rafraîchissement du panier: $e',
+      );
+    }
   }
 }
 

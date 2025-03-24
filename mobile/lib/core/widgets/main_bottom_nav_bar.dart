@@ -22,6 +22,12 @@ class MainBottomNavBar extends ConsumerWidget {
     return BottomNavigationBar(
       currentIndex: selectedIndex,
       onTap: (index) {
+        // Si l'utilisateur clique sur l'onglet Panier, rafraîchir le panier
+        if (index == 2) { // L'index 2 correspond à l'onglet Panier
+          debugPrint('Onglet Panier sélectionné, rafraîchissement automatique');
+          ref.read(cartProvider.notifier).refreshCart();
+        }
+        
         ref.read(selectedNavIndexProvider.notifier).state = index;
         onItemSelected(index);
       },
