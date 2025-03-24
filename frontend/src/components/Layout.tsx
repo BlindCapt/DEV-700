@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Home, Package, LogOut } from 'lucide-react'
+import { Home, Package, LogOut, Users } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -26,8 +26,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen bg-background">
-        <Sidebar className="bg-card border-border">
+      <div className="flex h-screen overflow-hidden bg-background">
+        <Sidebar className="bg-card border-border shrink-0">
           <SidebarHeader className="border-border">
             <h2 className="text-xl font-bold p-4 text-foreground">T-DEV-700</h2>
           </SidebarHeader>
@@ -51,6 +51,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link to="/users" className="flex items-center text-foreground">
+                        <Users className="mr-2 h-4 w-4" />
+                        <span>Utilisateurs</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -68,7 +76,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </div>
           </SidebarContent>
         </Sidebar>
-        <main className="flex-1 overflow-y-auto bg-background text-foreground p-8">
+        <main className="flex-1 w-full max-w-none overflow-auto bg-background text-foreground p-4">
           {children}
         </main>
       </div>

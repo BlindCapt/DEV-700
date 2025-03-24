@@ -4,6 +4,7 @@ using Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 // using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
 
 namespace API.Controllers
 {
@@ -166,9 +167,80 @@ namespace API.Controllers
             return NotFound("Ce produit n'est pas disponible à la vente dans notre magasin.");
         }
 
+        // Endpoint pour l'importation en masse de produits
+        [HttpPost("bulk-import")]
+        public async Task<IActionResult> BulkImport([FromBody] IEnumerable<BulkImportProductDto> products)
+        {
+            if (products == null || !products.Any())
+            {
+                return BadRequest("La liste des produits est vide ou non valide");
+            }
+
+            var results = new BulkImportResult
+            {
+                SuccessCount = 0,
+                FailedCount = 0,
+                Errors = new List<string>()
+            };
+
+            foreach (var productDto in products)
+            {
+                try
+                {
+                    // Vérifier si le produit existe déjà par code-barres
+                    var existingProduct = await _context.Products
+                        .FirstOrDefaultAsync(p => p.Barcode == productDto.Id);
+                    
+                    if (existingProduct == null)
+                    {
+                        results.FailedCount++;
+                        results.Errors.Add($"Produit avec code-barres {productDto.Id} non trouvé");
+                        continue;
+                    }
+
+                    // Mettre à jour le prix si spécifié
+                    if (productDto.Prix > 0)
+                    {
+                        existingProduct.Price = productDto.Prix;
+                    }
+
+                    // Ajouter du stock si spécifié
+                    if (productDto.Quantite > 0)
+                    {
+                        existingProduct.Quantity += productDto.Quantite;
+                    }
+
+                    await _context.SaveChangesAsync();
+                    results.SuccessCount++;
+                }
+                catch (Exception ex)
+                {
+                    results.FailedCount++;
+                    results.Errors.Add($"Erreur pour le produit avec code-barres {productDto.Id}: {ex.Message}");
+                }
+            }
+
+            return Ok(results);
+        }
+
         public class AddStockRequest
         {
             public int QuantityToAdd { get; set; }
+        }
+
+        // Classes DTO pour l'importation en masse
+        public class BulkImportProductDto
+        {
+            public string Id { get; set; } // Code-barres
+            public decimal Prix { get; set; }
+            public int Quantite { get; set; }
+        }
+
+        public class BulkImportResult
+        {
+            public int SuccessCount { get; set; }
+            public int FailedCount { get; set; }
+            public List<string> Errors { get; set; }
         }
     }
 }

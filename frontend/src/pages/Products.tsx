@@ -4,6 +4,7 @@ import { useProducts } from '../api/useProducts'
 import { ProductTable } from '../components/ProductTable.tsx'
 import { Input } from '@/components/ui/input'
 import { AddProductDialog } from '../components/AddProductDialog'
+import { BulkImportDialog } from '../components/BulkImportDialog'
 
 export default function Products() {
   const { data: products } = useProducts()
@@ -27,7 +28,10 @@ export default function Products() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
-          <AddProductDialog />
+          <div className="space-x-2">
+            <BulkImportDialog />
+            <AddProductDialog />
+          </div>
         </div>
         <div className="w-full min-w-full">
           <ProductTable products={filteredProducts || []} />

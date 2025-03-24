@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Dashboard } from './pages/Dashboard';
 import Products from './pages/Products';
+import { Users } from './pages/Users';
 import { Login } from './pages/Login';
 import { Layout } from './components/Layout';
 import { PrivateRoute } from './components/PrivateRoute';
@@ -31,6 +32,13 @@ function App() {
             <PrivateRoute>
               <Layout>
                 <Products />
+              </Layout>
+            </PrivateRoute>
+          } />
+          <Route path="/users" element={
+            <PrivateRoute>
+              <Layout>
+                <Users />
               </Layout>
             </PrivateRoute>
           } />

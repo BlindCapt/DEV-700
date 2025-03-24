@@ -33,6 +33,39 @@ public class MobileUsersController : ControllerBase
         }));
     }
 
+    [HttpPost]
+    public async Task<ActionResult<MobileUserDto>> CreateUser(CreateMobileUserDto dto)
+    {
+        if (await _context.MobileUsers.AnyAsync(u => u.Email == dto.Email))
+            return BadRequest("Cet email est déjà utilisé");
+
+        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+        
+        var user = new MobileUser
+        {
+            Email = dto.Email,
+            Password = hashedPassword,
+            FirstName = dto.FirstName,
+            LastName = dto.LastName,
+            PhoneNumber = dto.PhoneNumber,
+            IsActive = true
+        };
+        
+        _context.MobileUsers.Add(user);
+        await _context.SaveChangesAsync();
+        
+        return CreatedAtAction(nameof(GetUser), new { id = user.Id }, new MobileUserDto
+        {
+            Id = user.Id,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            PhoneNumber = user.PhoneNumber,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt
+        });
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<MobileUserDto>> GetUser(int id)
     {
@@ -103,6 +136,15 @@ public class MobileUserDto
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLogin { get; set; }
+}
+
+public class CreateMobileUserDto
+{
+    public string Email { get; set; }
+    public string Password { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public string PhoneNumber { get; set; }
 }
 
 public class UpdateMobileUserDto
