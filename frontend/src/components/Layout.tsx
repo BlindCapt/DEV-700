@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Home, Package, LogOut, Users } from 'lucide-react'
+import { Home, Package, LogOut, Users, Receipt } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -56,6 +56,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                       <Link to="/users" className="flex items-center text-foreground">
                         <Users className="mr-2 h-4 w-4" />
                         <span>Utilisateurs</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link to="/invoices" className="flex items-center text-foreground">
+                        <Receipt className="mr-2 h-4 w-4" />
+                        <span>Factures</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

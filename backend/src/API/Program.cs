@@ -113,6 +113,9 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast");
 
+// Initialiser la base de données avec les données de test
+Infrastructure.Data.DbInitializer.Initialize(app.Services);
+
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)

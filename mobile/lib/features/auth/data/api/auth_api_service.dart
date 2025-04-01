@@ -19,7 +19,7 @@ class AuthApiService {
   static const Duration _timeout = Duration(seconds: 2);
   
   // URL actuelle (obtenue dynamiquement)
-  String _currentApiUrl = 'https://99c4-163-5-3-101.ngrok-free.app';
+  String _currentApiUrl = 'https://f6f4-163-5-3-101.ngrok-free.app';
   
   // Getter pour l'URL actuelle
   String get currentApiUrl => _currentApiUrl;

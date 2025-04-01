@@ -8,7 +8,7 @@ class ApiUrlResolver {
   static const Duration _timeout = Duration(seconds: 2);
   
   // URL par défaut pour ngrok (à garder à jour lors des redémarrages de ngrok)
-  static const String _defaultNgrokUrl = 'https://99c4-163-5-3-101.ngrok-free.app';
+  static const String _defaultNgrokUrl = 'https://f6f4-163-5-3-101.ngrok-free.app';
   
   // Récupérer l'URL de l'API, sans détection automatique
   Future<String> getApiUrl() async {

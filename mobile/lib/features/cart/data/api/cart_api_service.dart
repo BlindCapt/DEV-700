@@ -300,4 +300,51 @@ class CartApiService {
       return false;
     }
   }
+
+  // Récupérer l'ID du panier actif
+  Future<int?> getActiveCartId() async {
+    try {
+      // Vérifier d'abord si l'utilisateur est authentifié
+      final token = await _tokenManager.getToken();
+      if (token == null) {
+        debugPrint('Utilisateur non authentifié, impossible de récupérer l\'ID du panier');
+        return null;
+      }
+      
+      final url = await _getApiUrl();
+      debugPrint('Récupération de l\'ID du panier actif depuis $url/api/carts/active');
+
+      final response = await http.get(
+        Uri.parse('$url/api/carts/active'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        // Vérifier si l'ID du panier est présent dans la réponse
+        if (data != null && data is Map && data.containsKey('id')) {
+          final cartId = data['id'];
+          debugPrint('ID du panier actif récupéré: $cartId');
+          return cartId;
+        } else {
+          debugPrint('ID du panier non trouvé dans la réponse: $data');
+          return null;
+        }
+      } else if (response.statusCode == 404) {
+        // Aucun panier actif trouvé
+        debugPrint('Aucun panier actif trouvé (404)');
+        return null;
+      } else {
+        debugPrint('Erreur HTTP ${response.statusCode} lors de la récupération de l\'ID du panier: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de la récupération de l\'ID du panier: $e');
+      return null;
+    }
+  }
 } 

@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Dashboard } from './pages/Dashboard';
 import Products from './pages/Products';
 import { Users } from './pages/Users';
+import { Invoices } from './pages/Invoices';
 import { Login } from './pages/Login';
 import { Layout } from './components/Layout';
 import { PrivateRoute } from './components/PrivateRoute';
@@ -39,6 +40,13 @@ function App() {
             <PrivateRoute>
               <Layout>
                 <Users />
+              </Layout>
+            </PrivateRoute>
+          } />
+          <Route path="/invoices" element={
+            <PrivateRoute>
+              <Layout>
+                <Invoices />
               </Layout>
             </PrivateRoute>
           } />

@@ -150,6 +150,15 @@ class CartNotifier extends StateNotifier<CartState> {
         );
         
         state = state.copyWith(items: updatedItems);
+        
+        // Synchroniser avec l'API en mettant à jour la quantité
+        final success = await _cartApiService.updateCartItem(product.id, existingItem.quantity + quantity);
+        
+        if (!success) {
+          // Si la synchronisation échoue, recharger le panier complet
+          await _loadCart();
+          debugPrint('Échec de la mise à jour de quantité, panier rechargé');
+        }
       } else {
         // Le produit n'existe pas encore, l'ajouter
         final newItem = CartItem(
@@ -160,15 +169,15 @@ class CartNotifier extends StateNotifier<CartState> {
         state = state.copyWith(
           items: [...state.items, newItem]
         );
-      }
-      
-      // Puis synchroniser avec l'API
-      final success = await _cartApiService.addToCart(product.id, quantity);
-      
-      if (!success) {
-        // Si la synchronisation échoue, recharger le panier complet
-        await _loadCart();
-        debugPrint('Échec de la synchronisation, panier rechargé');
+        
+        // Puis synchroniser avec l'API
+        final success = await _cartApiService.addToCart(product.id, quantity);
+        
+        if (!success) {
+          // Si la synchronisation échoue, recharger le panier complet
+          await _loadCart();
+          debugPrint('Échec de l\'ajout au panier, panier rechargé');
+        }
       }
       
       debugPrint('Produit ajouté au panier: ${product.name}, quantité: $quantity');

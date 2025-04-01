@@ -13,6 +13,7 @@ import 'features/scanner/presentation/screens/barcode_scanner_screen.dart';
 import 'features/cart/presentation/screens/cart_screen.dart';
 import 'features/main/presentation/screens/main_screen.dart';
 import 'features/products/presentation/screens/favorites_screen.dart';
+import 'features/orders/presentation/screens/order_history_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,6 +65,7 @@ class MyApp extends StatelessWidget {
         '/scanner': (context) => const BarcodeScannerScreen(),
         '/cart': (context) => const CartScreen(), // Ajouter la route vers l'écran du panier
         '/favorites': (context) => const FavoritesScreen(), // Ajouter la route vers l'écran des favoris
+        '/order-history': (context) => const OrderHistoryScreen(), // Ajouter la route vers l'historique des commandes
       },
     );
   }

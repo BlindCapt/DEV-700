@@ -67,11 +67,7 @@ class ProfileScreen extends ConsumerWidget {
           icon: Icons.history,
           title: 'Historique des commandes',
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Fonctionnalité non implémentée'),
-              ),
-            );
+            Navigator.pushNamed(context, '/order-history');
           },
         ),
         _buildProfileMenuItem(

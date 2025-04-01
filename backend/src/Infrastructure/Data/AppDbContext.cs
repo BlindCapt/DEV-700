@@ -15,6 +15,7 @@ namespace Infrastructure.Data
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Favorite> Favorites { get; set; }
+        public DbSet<Invoice> Invoices { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -44,6 +45,26 @@ namespace Infrastructure.Data
                 .HasOne(f => f.Product)
                 .WithMany()
                 .HasForeignKey(f => f.ProductId);
+                
+            // Configuration des relations pour les factures
+            modelBuilder.Entity<Invoice>()
+                .HasOne(i => i.MobileUser)
+                .WithMany()
+                .HasForeignKey(i => i.MobileUserId);
+                
+            modelBuilder.Entity<Invoice>()
+                .HasOne(i => i.Cart)
+                .WithOne()
+                .HasForeignKey<Invoice>(i => i.CartId);
+                
+            modelBuilder.Entity<Invoice>()
+                .Property(i => i.TotalAmount)
+                .HasColumnType("decimal(18,2)");
+                
+            // Index unique pour le numéro de facture
+            modelBuilder.Entity<Invoice>()
+                .HasIndex(i => i.InvoiceNumber)
+                .IsUnique();
                 
             // Index unique pour éviter les doublons de favoris (un utilisateur ne peut mettre un produit en favori qu'une seule fois)
             modelBuilder.Entity<Favorite>()

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../providers/cart_provider.dart';
+import '../../../../providers/invoice_provider.dart';
 import '../../../../core/widgets/main_bottom_nav_bar.dart'; // Import pour selectedNavIndexProvider
 import '../../domain/models/cart_item.dart';
 
@@ -420,12 +421,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             // Bouton de paiement - Taille fixe pour éviter les débordements
             ElevatedButton(
               onPressed: () {
-                // TODO: Implémenter le processus de paiement
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Fonctionnalité de paiement à implémenter'),
-                  ),
-                );
+                _initiatePaymentProcess(context, ref);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
@@ -516,6 +512,222 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             },
             child: const Text('Vider'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Lancer le processus de paiement
+  void _initiatePaymentProcess(BuildContext context, WidgetRef ref) async {
+    try {
+      // Afficher un indicateur de chargement
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      
+      // Créer la facture
+      final invoiceNotifier = ref.read(invoiceProvider.notifier);
+      final success = await invoiceNotifier.createInvoice();
+      
+      if (!success) {
+        // Échec de la création de la facture
+        final error = ref.read(invoiceProvider).error;
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(error ?? 'Erreur lors de la création de la facture'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      // Afficher la popup de confirmation
+      _showPaymentConfirmationDialog(context, ref);
+    } catch (e) {
+      debugPrint('Erreur lors du processus de paiement: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Une erreur est survenue: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
+  // Afficher la popup de confirmation de paiement
+  void _showPaymentConfirmationDialog(BuildContext context, WidgetRef ref) {
+    final invoiceState = ref.read(invoiceProvider);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false, // L'utilisateur doit faire un choix
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmation de paiement'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Voulez-vous confirmer votre achat?',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Facture: ${invoiceState.invoiceNumber ?? "N/A"}'),
+            const SizedBox(height: 8),
+            Text(
+              'Montant total: ${invoiceState.totalAmount.toStringAsFixed(2)} €',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Annuler la facture
+              _cancelPayment(context, ref);
+            },
+            child: const Text('Non'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Confirmer le paiement
+              _confirmPayment(context, ref);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Oui, payer'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Confirmer le paiement
+  void _confirmPayment(BuildContext context, WidgetRef ref) async {
+    Navigator.of(context).pop(); // Fermer la popup
+    
+    // Afficher un indicateur de chargement
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text('Traitement du paiement...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    
+    // Traiter le paiement
+    final invoiceNotifier = ref.read(invoiceProvider.notifier);
+    final success = await invoiceNotifier.payInvoice(paymentMethod: 'cash');
+    
+    if (success) {
+      // Paiement réussi
+      _showPaymentSuccessDialog(context, ref);
+    } else {
+      // Échec du paiement
+      final error = ref.read(invoiceProvider).error;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'Échec du paiement'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
+  // Annuler le paiement
+  void _cancelPayment(BuildContext context, WidgetRef ref) async {
+    Navigator.of(context).pop(); // Fermer la popup
+    
+    // Afficher un indicateur de chargement
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text('Annulation du paiement...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    
+    // Annuler la facture
+    final invoiceNotifier = ref.read(invoiceProvider.notifier);
+    final success = await invoiceNotifier.cancelInvoice();
+    
+    if (success) {
+      // Annulation réussie
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Paiement annulé'),
+        ),
+      );
+    } else {
+      // Échec de l'annulation
+      final error = ref.read(invoiceProvider).error;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'Échec de l\'annulation'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
+  // Afficher une popup de succès du paiement
+  void _showPaymentSuccessDialog(BuildContext context, WidgetRef ref) {
+    final invoiceState = ref.read(invoiceProvider);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Paiement réussi'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 50,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Votre paiement a été traité avec succès!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Facture: ${invoiceState.invoiceNumber ?? "N/A"}',
+              style: const TextStyle(
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Montant: ${invoiceState.totalAmount.toStringAsFixed(2)} €',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Réinitialiser l'état de la facture
+              ref.read(invoiceProvider.notifier).resetInvoiceState();
+            },
+            child: const Text('OK'),
           ),
         ],
       ),
