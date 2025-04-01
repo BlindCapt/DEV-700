@@ -42,6 +42,9 @@ export const useProducts = () => {
         }
         throw new Error('Erreur lors de la récupération des produits');
       }
-    }
+    },
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000, // Données considérées comme obsolètes après 30 secondes
   });
 }; 

@@ -89,7 +89,10 @@ export const useWebUsers = () => {
         }
         throw new Error(`Erreur lors de la récupération des utilisateurs web: ${error.message}`);
       }
-    }
+    },
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000 // Les données sont considérées comme obsolètes après 30 secondes
   });
 };
 
@@ -120,7 +123,10 @@ export const useMobileUsers = () => {
         }
         throw new Error(`Erreur lors de la récupération des utilisateurs mobiles: ${error.message}`);
       }
-    }
+    },
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000 // Les données sont considérées comme obsolètes après 30 secondes
   });
 };
 

@@ -36,7 +36,7 @@ import { Label } from "../components/ui/label"
 import { Textarea } from "../components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Badge } from "../components/ui/badge"
-import { Loader2, MoreHorizontal, FileText, Eye, CheckCircle, XCircle, Plus } from "lucide-react"
+import { Loader2, MoreHorizontal, FileText, Eye, CheckCircle, XCircle, Plus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import {
   useInvoices,
@@ -84,7 +84,7 @@ export const Invoices = () => {
   })
   
   // Récupérer les données avec React Query
-  const { data: invoices, isLoading } = useInvoices()
+  const { data: invoices, isLoading, refetch, isFetching } = useInvoices()
   const { data: invoiceDetails, refetch: refetchInvoiceDetails } = useInvoice(selectedInvoice?.id || 0)
   
   // Mutations pour opérations CRUD
@@ -93,6 +93,12 @@ export const Invoices = () => {
   const deleteInvoiceMutation = useDeleteInvoice()
   const markAsPaidMutation = useMarkInvoiceAsPaid()
   const cancelInvoiceMutation = useCancelInvoice()
+  
+  // Handler pour rafraîchir les données
+  const handleRefresh = () => {
+    refetch();
+    toast.success("Données rafraîchies");
+  };
   
   // Filtrer les factures
   const filteredInvoices = invoices ? invoices.filter((invoice: Invoice) => {
@@ -140,6 +146,8 @@ export const Invoices = () => {
         return 'Payée'
       case InvoiceStatus.Cancelled:
         return 'Annulée'
+      case InvoiceStatus.Refunded:
+        return 'Remboursée'
       default:
         return 'Inconnu'
     }
@@ -154,6 +162,8 @@ export const Invoices = () => {
         return 'default'
       case InvoiceStatus.Cancelled:
         return 'destructive'
+      case InvoiceStatus.Refunded:
+        return 'warning'
       default:
         return 'outline'
     }
@@ -284,6 +294,16 @@ export const Invoices = () => {
           <h1 className="text-2xl font-bold">Gestion des Factures</h1>
           <p className="text-muted-foreground">Consultez et gérez toutes les factures de vos clients</p>
         </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh} 
+          disabled={isLoading || isFetching}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          <span>Actualiser</span>
+        </Button>
       </div>
       
       {/* Filtres et recherche */}
@@ -299,6 +319,7 @@ export const Invoices = () => {
                 <SelectItem value="0">En attente</SelectItem>
                 <SelectItem value="1">Payée</SelectItem>
                 <SelectItem value="2">Annulée</SelectItem>
+                <SelectItem value="3">Remboursée</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -551,6 +572,7 @@ export const Invoices = () => {
                     <SelectItem value="0">En attente</SelectItem>
                     <SelectItem value="1">Payée</SelectItem>
                     <SelectItem value="2">Annulée</SelectItem>
+                    <SelectItem value="3">Remboursée</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

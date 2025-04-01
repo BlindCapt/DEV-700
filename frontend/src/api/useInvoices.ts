@@ -7,7 +7,25 @@ import { useAuthStore } from '../stores/authStore'
 export enum InvoiceStatus {
   Pending = 0,
   Paid = 1,
-  Cancelled = 2
+  Cancelled = 2,
+  Refunded = 3
+}
+
+// Fonction utilitaire pour convertir la chaîne de statut en InvoiceStatus
+export const parseInvoiceStatus = (statusStr: string): InvoiceStatus => {
+  switch(statusStr.toLowerCase()) {
+    case 'pending':
+      return InvoiceStatus.Pending;
+    case 'paid':
+      return InvoiceStatus.Paid;
+    case 'cancelled':
+      return InvoiceStatus.Cancelled;
+    case 'refunded':
+      return InvoiceStatus.Refunded;
+    default:
+      console.warn(`Statut de facture inconnu: ${statusStr}`);
+      return InvoiceStatus.Pending; // Valeur par défaut
+  }
 }
 
 export enum PaymentMethod {
@@ -89,7 +107,16 @@ export const useInvoices = () => {
           }
         })
         console.log('Invoices response:', response.data)
-        return response.data
+        
+        // Convertir les statuts de chaîne en enum
+        const invoices = response.data.map((invoice: any) => ({
+          ...invoice,
+          status: typeof invoice.status === 'string' 
+            ? parseInvoiceStatus(invoice.status) 
+            : invoice.status
+        }));
+        
+        return invoices;
       } catch (firstError: any) {
         console.warn(`Erreur avec l'URL ${INVOICE_ENDPOINTS[0]} (authentifié):`, firstError.message)
         
@@ -98,7 +125,16 @@ export const useInvoices = () => {
           console.log('Tentative sans authentification:', INVOICE_ENDPOINTS[0])
           const response = await axios.get(INVOICE_ENDPOINTS[0])
           console.log('Invoices response (sans auth):', response.data)
-          return response.data
+          
+          // Convertir les statuts de chaîne en enum
+          const invoices = response.data.map((invoice: any) => ({
+            ...invoice,
+            status: typeof invoice.status === 'string' 
+              ? parseInvoiceStatus(invoice.status) 
+              : invoice.status
+          }));
+          
+          return invoices;
         } catch (authError: any) {
           console.warn(`Échec sans authentification pour ${INVOICE_ENDPOINTS[0]}:`, authError.message)
         }
@@ -112,7 +148,16 @@ export const useInvoices = () => {
             }
           })
           console.log('Invoices response (alternative):', response.data)
-          return response.data
+          
+          // Convertir les statuts de chaîne en enum
+          const invoices = response.data.map((invoice: any) => ({
+            ...invoice,
+            status: typeof invoice.status === 'string' 
+              ? parseInvoiceStatus(invoice.status) 
+              : invoice.status
+          }));
+          
+          return invoices;
         } catch (secondError: any) {
           console.error('Tous les endpoints ont échoué:')
           console.error(`- ${INVOICE_ENDPOINTS[0]} (auth): ${firstError.message}`)
@@ -131,7 +176,9 @@ export const useInvoices = () => {
       }
     },
     retry: 0,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 30 * 1000 // Les données sont considérées comme obsolètes après 30 secondes
   })
 }
 
@@ -150,7 +197,16 @@ export const useInvoice = (id: number) => {
           }
         })
         console.log(`Invoice ${id} response:`, response.data)
-        return response.data
+        
+        // Convertir le statut de chaîne en enum
+        const invoice = {
+          ...response.data,
+          status: typeof response.data.status === 'string' 
+            ? parseInvoiceStatus(response.data.status) 
+            : response.data.status
+        };
+        
+        return invoice;
       } catch (error: any) {
         console.error(`Error fetching invoice ${id}:`, error)
         if (error.response) {
@@ -163,7 +219,10 @@ export const useInvoice = (id: number) => {
         throw error
       }
     },
-    enabled: !!id && !!token
+    enabled: !!id && !!token,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 30 * 1000 // Les données sont considérées comme obsolètes après 30 secondes
   })
 }
 

@@ -10,7 +10,19 @@ import { Layout } from './components/Layout';
 import { PrivateRoute } from './components/PrivateRoute';
 import { useEffect } from 'react'
 import { Toaster } from '@/components/ui/sonner';
-const queryClient = new QueryClient();
+
+// Configuration de React Query pour mettre à jour fréquemment les données
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
+      staleTime: 0, // Forcer le rafraîchissement à chaque montage de composant
+      retry: 1,
+    },
+  },
+});
 
 function App() {
   useEffect(() => {

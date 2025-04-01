@@ -41,7 +41,7 @@ import {
   SelectValue,
 } from "../components/ui/select"
 import { toast } from "sonner"
-import { MoreHorizontal, UserPlus, Loader2 } from "lucide-react"
+import { MoreHorizontal, UserPlus, Loader2, RefreshCw } from "lucide-react"
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { 
@@ -111,8 +111,8 @@ export const Users = () => {
   })
   
   // Récupération des données avec React Query
-  const { data: webUsers, isLoading: isLoadingWebUsers } = useWebUsers()
-  const { data: mobileUsers, isLoading: isLoadingMobileUsers } = useMobileUsers()
+  const { data: webUsers, isLoading: isLoadingWebUsers, refetch: refetchWebUsers, isFetching: isFetchingWebUsers } = useWebUsers()
+  const { data: mobileUsers, isLoading: isLoadingMobileUsers, refetch: refetchMobileUsers, isFetching: isFetchingMobileUsers } = useMobileUsers()
   
   // Mutations pour les opérations CRUD
   const createWebUserMutation = useCreateWebUser()
@@ -121,6 +121,19 @@ export const Users = () => {
   const deleteWebUserMutation = useDeleteWebUser()
   const updateMobileUserMutation = useUpdateMobileUser()
   const deleteMobileUserMutation = useDeleteMobileUser()
+  
+  // Fonction pour rafraîchir les données
+  const handleRefresh = () => {
+    const currentTab = document.querySelector('[role="tab"][data-state="active"]')?.getAttribute('value');
+    
+    if (currentTab === 'web' || !currentTab) {
+      refetchWebUsers();
+    } else if (currentTab === 'mobile') {
+      refetchMobileUsers();
+    }
+    
+    toast.success("Données rafraîchies");
+  };
   
   // Handlers pour la création d'un utilisateur web
   const handleCreateWebUserChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -322,6 +335,16 @@ export const Users = () => {
     <div className="w-full max-w-none">
       <div className="flex justify-between items-center mb-4 w-full">
         <h1 className="text-2xl font-bold">Gestion des Utilisateurs</h1>
+        <Button 
+          variant="outline"
+          size="sm" 
+          onClick={handleRefresh}
+          disabled={isLoadingWebUsers || isLoadingMobileUsers || isFetchingWebUsers || isFetchingMobileUsers}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isFetchingWebUsers || isFetchingMobileUsers ? 'animate-spin' : ''}`} />
+          <span>Actualiser</span>
+        </Button>
       </div>
 
       <div className="w-full max-w-none">
